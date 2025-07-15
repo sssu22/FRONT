@@ -1,0 +1,52 @@
+name: "🎨 FE Feature Request"
+description: "프론트엔드 신규 기능 요청 또는 UI 개선 제안"
+title: "[FE] "
+labels: ["frontend", "feature"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: "📝 기능 개요"
+      description: "어떤 기능이 필요한지 간결하게 작성해주세요."
+      placeholder: "예: 회의록 타임라인 표시 기능"
+    validations:
+      required: true
+
+  - type: textarea
+    id: reason
+    attributes:
+      label: "💡 요청 배경"
+      description: "이 기능이 필요한 이유나 사용자 입장에서의 문제점"
+      placeholder: "예: 회의 흐름 시각화가 되지 않아 사용자 불편"
+    validations:
+      required: true
+
+  - type: textarea
+    id: details
+    attributes:
+      label: "🎯 구현 아이디어 / 화면 구성"
+      description: "UI 흐름, 인터랙션, 상태 관리 방법 등을 자유롭게 적어주세요."
+      placeholder: "예: 발언 시간대별 구간 표시, hover 시 요약 표시"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: "📦 예상 작업 범위"
+      description: "해당 기능에 필요한 작업을 체크해주세요."
+      options:
+        - label: "UI 컴포넌트 개발"
+        - label: "API 연동"
+        - label: "상태 관리 로직 추가"
+        - label: "디자인 반영 / Figma 참고"
+        - label: "테스트 코드 작성"
+
+  - type: input
+    id: deadline
+    attributes:
+      label: "📆 목표 완료일"
+      description: "완료 희망 날짜 (선택)"
+      placeholder: "예: 2025-07-22"
+    validations:
+      required: false

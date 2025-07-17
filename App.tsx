@@ -12,8 +12,6 @@ import ProfileTab from './ProfileTab';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
-
-// 더미 데이터
 const dummyExperiences: Experience[] = [
   {
     id: '1',
@@ -95,10 +93,10 @@ export default function App() {
           headerTitleAlign: 'left',
           headerTitle: () => (
             <View style={{ marginRight: 200}}>
-              <Text style={{ fontSize: 20, fontWeight: '600', color: '#6a83b4ff' }}>
+              <Text style={{ fontSize: 20, fontWeight: '600', color: '#7a96ceff' }}>
                 TrendLog
               </Text>
-              <Text style={{ fontSize: 12, color: '#6a83b4ff' }}>
+              <Text style={{ fontSize: 12, color: '#7a96ceff' }}>
                 안녕하세요, 종민님!
               </Text>
             </View>
@@ -108,7 +106,7 @@ export default function App() {
               onPress={() => console.log('플러스 눌림')}
               style={{
                 marginRight: 16,
-                backgroundColor: '#6a83b4ff',
+                backgroundColor: '#7a96ceff',
                 borderRadius: 18,
                 width: 36,
                 height: 36,

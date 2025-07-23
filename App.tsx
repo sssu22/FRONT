@@ -10,12 +10,14 @@ import HomeTab from "./screens/HomeTab"
 import PostsTab, { Experience } from "./screens/MyPostsTab"
 import TrendsTab, { Trend, UserTrendActivity } from "./screens/TrendsTab"
 import ProfileTab from "./screens/ProfileTab"
-import CreatePostScreen from "./screens/CreatePostScreen"  // 추가된 작성 화면
+import CreatePostScreen from "./screens/CreatePostScreen"
+import EditPostScreen from "./screens/EditPostScreen"
+import PostDetailScreen from "./screens/PostDetailScreen"
 
 const Stack = createNativeStackNavigator()
 const Tab = createBottomTabNavigator()
 
-// — 더미 경험 (MyPostsTab용)
+// — 더미 경험 (MyPostsTab 용)
 const dummyExperiences: Experience[] = [
   {
     id: "1",
@@ -49,7 +51,7 @@ const dummyExperiences: Experience[] = [
   },
 ]
 
-// — 더미 트렌드 (TrendsTab용)
+// — 더미 트렌드 (TrendsTab 용)
 const dummyTrends: Trend[] = [
   {
     id: "1",
@@ -61,50 +63,10 @@ const dummyTrends: Trend[] = [
     experienceCount: 1,
     prediction: { direction: "up", confidence: 85, nextMonthGrowth: 15 },
   },
-  {
-    id: "2",
-    name: "혼밥",
-    description: "혼자 식사하는 문화",
-    category: "라이프스타일",
-    popularity: 88,
-    createdAt: "2023-06-15",
-    experienceCount: 1,
-    prediction: { direction: "stable", confidence: 92, nextMonthGrowth: 3 },
-  },
-  {
-    id: "3",
-    name: "K-POP 콘서트",
-    description: "한국 아이돌 공연 관람",
-    category: "문화",
-    popularity: 92,
-    createdAt: "2023-09-01",
-    experienceCount: 1,
-    prediction: { direction: "up", confidence: 78, nextMonthGrowth: 22 },
-  },
-  {
-    id: "4",
-    name: "비건 라이프",
-    description: "식물성 식단과 친환경 생활",
-    category: "건강",
-    popularity: 76,
-    createdAt: "2023-07-01",
-    experienceCount: 1,
-    prediction: { direction: "up", confidence: 89, nextMonthGrowth: 18 },
-  },
-  {
-    id: "5",
-    name: "NFT 투자",
-    description: "디지털 자산 투자 트렌드",
-    category: "투자",
-    popularity: 82,
-    createdAt: "2023-05-01",
-    experienceCount: 1,
-    prediction: { direction: "down", confidence: 73, nextMonthGrowth: -8 },
-  },
+  // … 나머지는 생략 …
 ]
 
 export default function App() {
-  // TrendsTab 전용 유저 활동 로그
   const [userActivity, setUserActivity] = useState<UserTrendActivity>({
     likes: [],
     searches: ["도넛", "혼밥"],
@@ -113,11 +75,8 @@ export default function App() {
     trendViews: [],
     categoryInterests: { 음식: 2, 라이프스타일: 1 },
   })
-
-  // 스크랩된 트렌드 ID
   const [scrappedTrends, setScrappedTrends] = useState<string[]>([])
 
-  // 트렌드 클릭 핸들러
   const handleTrendView = (trendId: string, category: string) => {
     if (!userActivity.trendViews.includes(trendId)) {
       setUserActivity((prev) => ({
@@ -125,17 +84,16 @@ export default function App() {
         trendViews: [...prev.trendViews, trendId],
       }))
     }
-    console.log(`[트렌드 클릭] ${trendId} / ${category}`)
   }
 
-  // 트렌드 스크랩 토글
   const handleToggleTrendScrap = (trendId: string) => {
     setScrappedTrends((prev) =>
-      prev.includes(trendId) ? prev.filter((id) => id !== trendId) : [...prev, trendId]
+      prev.includes(trendId)
+        ? prev.filter((id) => id !== trendId)
+        : [...prev, trendId]
     )
   }
 
-  // Bottom Tab Navigator
   function MainTabs() {
     return (
       <Tab.Navigator
@@ -148,23 +106,33 @@ export default function App() {
               Trends: "trending-up-outline",
               Profile: "person-outline",
             }
-            return <Ionicons name={icons[route.name] ?? "help-circle-outline"} size={size} color={color} />
+            return <Ionicons name={icons[route.name]!} size={size} color={color} />
           },
           tabBarActiveTintColor: "#7C3AED",
           tabBarInactiveTintColor: "gray",
         })}
       >
-        <Tab.Screen name="Home" component={HomeTab} options={{ title: "홈" }} />
+        <Tab.Screen name="Home" component={HomeTab} />
 
         <Tab.Screen
           name="Posts"
           options={{ title: "내 게시글" }}
-          children={() => (
+          children={({ navigation }) => (
             <PostsTab
               experiences={dummyExperiences}
-              onExperienceClick={(exp) => console.log("[경험 클릭]", exp)}
-              onEditExperience={(exp) => console.log("[수정 클릭]", exp)}
-              onDeleteExperience={(id) => console.log("[삭제 클릭]", id)}
+              // 카드 전체 터치 → 부모(Stack) 네비게이터로 PostDetail 이동
+              onExperienceClick={(exp) =>
+                navigation.getParent()?.navigate("PostDetail", { experience: exp })
+              }
+              // ✏️ 아이콘 터치 → 부모(Stack) 네비게이터로 EditPost 이동
+              onEditExperience={(exp) =>
+                navigation.getParent()?.navigate("EditPost", {
+                  experience: exp,
+                  onSave: (updated: Experience) =>
+                    console.log("수정된 경험:", updated),
+                })
+              }
+              onDeleteExperience={(id) => console.log("삭제할 경험 ID:", id)}
             />
           )}
         />
@@ -183,24 +151,22 @@ export default function App() {
           )}
         />
 
-        <Tab.Screen name="Profile" component={ProfileTab} options={{ title: "프로필" }} />
+        <Tab.Screen name="Profile" component={ProfileTab} />
       </Tab.Navigator>
     )
   }
 
-  // Stack Navigator
   return (
     <NavigationContainer>
       <Stack.Navigator>
-        {/* 메인 탭 */}
+        {/* MainTabs */}
         <Stack.Screen
           name="MainTabs"
           component={MainTabs}
           options={({ navigation }) => ({
             headerShown: true,
-            headerStyle: { backgroundColor: "#fff" },
-            headerShadowVisible: false,
             headerTitleAlign: "left",
+            headerShadowVisible: false,
             headerTitle: () => (
               <View style={styles.headerTitleContainer}>
                 <Text style={styles.headerTitle}>TrendLog</Text>
@@ -208,15 +174,36 @@ export default function App() {
               </View>
             ),
             headerRight: () => (
-              <TouchableOpacity onPress={() => navigation.navigate("CreatePost")} style={styles.headerButton}>
+              <TouchableOpacity
+                style={styles.headerButton}
+                onPress={() => navigation.navigate("CreatePost")}
+              >
                 <Ionicons name="add" size={24} color="#fff" />
               </TouchableOpacity>
             ),
           })}
         />
 
-        {/* 게시글 작성 화면 추가 */}
-        <Stack.Screen name="CreatePost" component={CreatePostScreen} options={{ title: "게시글 작성" }} />
+        {/* 게시글 작성 */}
+        <Stack.Screen
+          name="CreatePost"
+          component={CreatePostScreen}
+          options={{ title: "게시글 작성" }}
+        />
+
+        {/* 게시글 수정 */}
+        <Stack.Screen
+          name="EditPost"
+          component={EditPostScreen}
+          options={{ title: "경험 수정하기" }}
+        />
+
+        {/* 게시글 상세보기 */}
+        <Stack.Screen
+          name="PostDetail"
+          component={PostDetailScreen}
+          options={{ title: "상세보기" }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   )
@@ -224,14 +211,14 @@ export default function App() {
 
 const styles = StyleSheet.create({
   headerTitleContainer: { marginRight: 200 },
-  headerTitle: { fontSize: 20, fontWeight: "600", color: "#7a96ceff" },
-  headerSubtitle: { fontSize: 12, color: "#7a96ceff" },
+  headerTitle: { fontSize: 20, fontWeight: "600", color: "#7C3AED" },
+  headerSubtitle: { fontSize: 12, color: "#7C3AED" },
   headerButton: {
     marginRight: 16,
-    backgroundColor: "#7a96ceff",
-    borderRadius: 18,
+    backgroundColor: "#7C3AED",
     width: 36,
     height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
   },

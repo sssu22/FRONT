@@ -7,12 +7,16 @@ import {
   TouchableOpacity,
   StyleSheet,
   Modal,
+  SafeAreaView,
 } from "react-native";
-import { Button, Chip, Card, Portal, Provider } from "react-native-paper";
+import { Button, Chip, Card, Provider } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
-// 트렌드 타입
+// TrendDetail과 dummyTrendDetails을 import 하세요
+import { dummyTrendDetails } from "../screens/data/dummyTrends"; // 경로는 실제 위치에 따라 조절
+
+// UI에서 사용할 Trend 타입
 interface Trend {
   id: string;
   name: string;
@@ -47,7 +51,6 @@ export const emotionItems = [
   { label: "😳 당황", value: "embarrassment" },
 ];
 
-// 감정 이모지 매핑
 const emotionIcons: Record<EmotionType, string> = {
   joy: "😊",
   excitement: "🔥",
@@ -61,7 +64,6 @@ const emotionIcons: Record<EmotionType, string> = {
   embarrassment: "😳",
 };
 
-// 폼 props
 interface ExperienceFormProps {
   onSubmit: (experience: {
     title: string;
@@ -84,26 +86,41 @@ interface ExperienceFormProps {
   } | null;
 }
 
-// (트렌드 선택 등) 실제 app에서는 트렌드 셀렉터 컴포넌트를 만드세요!
-function DummyTrendSelector({ visible, onSelect, onClose }: any) {
-  const trends: Trend[] = [
-    {
-      id: "1", name: "도넛 플렉스", description: "SNS에서 도넛을 자랑하는 트렌드",
-      category: "음식", popularity: 95, createdAt: "2023-08-01",
-    },
-    {
-      id: "2", name: "혼밥", description: "혼자 식사하는 문화",
-      category: "라이프스타일", popularity: 88, createdAt: "2023-06-15",
-    },
-    // 추가...
-  ];
+// TrendDetail을 Trend 타입으로 변환
+const mappedTrends: Trend[] = dummyTrendDetails.map((item) => ({
+  id: item.trendId.toString(),
+  name: item.title,
+  description: item.description,
+  category: item.category,
+  popularity: item.score,
+  createdAt: item.peakPeriod + "-01", // YYYY-MM → YYYY-MM-01
+}));
+
+// TrendSelector Modal 컴포넌트
+function TrendSelectorModal({ visible, onSelect, onClose }: { visible: boolean, onSelect: (trend: Trend) => void, onClose: () => void }) {
+  const [search, setSearch] = useState("");
+  const filteredTrends = mappedTrends.filter(
+    (trend) =>
+      trend.name.includes(search) || trend.description.includes(search)
+  );
+
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.trendModalBackdrop}>
         <View style={styles.trendModalSheet}>
           <Text style={styles.sectionTitle}>트렌드 선택</Text>
-          <ScrollView style={{ maxHeight: 340 }}>
-            {trends.map(trend => (
+          <TextInput
+            placeholder="트렌드명/설명 검색"
+            style={[styles.input, { marginBottom: 8, backgroundColor: "#fff" }]}
+            value={search}
+            onChangeText={setSearch}
+            clearButtonMode="while-editing"
+          />
+          <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false}>
+            {filteredTrends.length === 0 && (
+              <Text style={{ textAlign: "center", color: "#aaa", margin: 12 }}>검색 결과가 없습니다</Text>
+            )}
+            {filteredTrends.map(trend => (
               <TouchableOpacity
                 key={trend.id}
                 style={styles.trendOption}
@@ -169,148 +186,174 @@ export default function ExperienceForm({ onSubmit, onClose, initialData }: Exper
 
   return (
     <Provider>
-      <ScrollView style={styles.root} contentContainerStyle={{ paddingBottom: 26 }}>
-        <Card style={styles.card}>
-          <View style={styles.headerRow}>
-            <Text style={styles.title}>
-              {initialData ? "경험 수정하기" : "새로운 첫 경험 추가"}
-            </Text>
-            <Button icon="close" onPress={onClose} compact style={{ marginLeft: 10 }}>닫기</Button>
-          </View>
-          {error && <Text style={styles.errorText}>{error}</Text>}
+      <SafeAreaView style={styles.root}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Card style={styles.card}>
+            <View style={styles.headerRow}>
+              <Text style={styles.title}>
+                {initialData ? "경험 수정하기" : "새로운 첫 경험 추가"}
+              </Text>
+              <Button icon="close" onPress={onClose} compact style={{ marginLeft: 10 }}>닫기</Button>
+            </View>
+            {error && <Text style={styles.errorText}>{error}</Text>}
 
-          {/* 트렌드 선택 */}
-          <Text style={styles.label}>트렌드 *</Text>
-          {selectedTrend ? (
-            <View style={styles.selectedTrendBox}>
-              <Text style={styles.selectedTrendTitle}>{selectedTrend.name}</Text>
-              <Text style={styles.selectedTrendDesc}>{selectedTrend.description}</Text>
-              <Chip style={styles.chip}>{selectedTrend.category}</Chip>
+            {/* 트렌드 선택 */}
+            <Text style={styles.label}>트렌드 *</Text>
+            {selectedTrend ? (
+              <View style={styles.selectedTrendBox}>
+                <Text style={styles.selectedTrendTitle}>{selectedTrend.name}</Text>
+                <Text style={styles.selectedTrendDesc}>{selectedTrend.description}</Text>
+                <Chip style={styles.chip}>{selectedTrend.category}</Chip>
+                <Button
+                  mode="text"
+                  compact
+                  onPress={() => setShowTrendSelector(true)}
+                >
+                  변경
+                </Button>
+              </View>
+            ) : (
               <Button
-                mode="text"
-                compact
+                mode="outlined"
+                icon="chevron-down"
+                style={{ marginBottom: 12 }}
                 onPress={() => setShowTrendSelector(true)}
               >
-                변경
+                트렌드를 선택하세요
               </Button>
-            </View>
-          ) : (
-            <Button
-              mode="outlined"
-              icon="chevron-down"
-              style={{ marginBottom: 12 }}
-              onPress={() => setShowTrendSelector(true)}
-            >
-              트렌드를 선택하세요
-            </Button>
-          )}
+            )}
 
-          {/* 제목 */}
-          <Text style={styles.label}>경험 제목 *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="제목을 입력하세요"
-            value={formData.title}
-            onChangeText={v => setFormData({ ...formData, title: v })}
-          />
-
-          {/* 날짜 */}
-          <Text style={styles.label}>날짜 *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="YYYY-MM-DD"
-            value={formData.date}
-            onChangeText={v => setFormData({ ...formData, date: v })}
-          />
-
-          {/* 장소 */}
-          <Text style={styles.label}>장소 *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="위치를 입력하세요"
-            value={formData.location}
-            onChangeText={v => setFormData({ ...formData, location: v })}
-          />
-
-          {/* 감정 */}
-          <Text style={styles.label}>감정 *</Text>
-          <ScrollView horizontal style={{ marginBottom: 10 }} showsHorizontalScrollIndicator={false}>
-            {emotionItems.map((opt) => (
-              <Chip
-                key={opt.value}
-                style={
-                  formData.emotion === opt.value
-                    ? [styles.chip, styles.chipSelected]
-                    : styles.chip
-                }
-                selected={formData.emotion === opt.value}
-                onPress={() =>
-                  setFormData({ ...formData, emotion: opt.value as EmotionType })
-                }
-              >
-                {opt.label}
-              </Chip>
-            ))}
-          </ScrollView>
-
-          {/* 태그 입력 */}
-          <Text style={styles.label}>추가 태그</Text>
-          <View style={styles.tagRow}>
+            {/* 제목 */}
+            <Text style={styles.label}>경험 제목 *</Text>
             <TextInput
-              style={[styles.input, { flex: 1 }]}
-              placeholder="태그 입력 후 추가"
-              value={currentTag}
-              onChangeText={setCurrentTag}
-              onSubmitEditing={handleAddTag}
-              returnKeyType="done"
+              style={styles.input}
+              placeholder="제목을 입력하세요"
+              value={formData.title}
+              onChangeText={v => setFormData({ ...formData, title: v })}
             />
-            <Button mode="contained" onPress={handleAddTag} compact style={{ marginLeft: 8, backgroundColor: "#ddd" }}>추가</Button>
-          </View>
-          <View style={styles.tagsList}>
-            {tags.map((tag) => (
-              <Chip
-                key={tag}
-                style={styles.tagChip}
-                onClose={() => handleRemoveTag(tag)}
-                closeIcon="close"
-              >
-                #{tag}
-              </Chip>
-            ))}
-          </View>
 
-          {/* 상세설명 */}
-          <Text style={styles.label}>상세 설명</Text>
-          <TextInput
-            style={[styles.input, { height: 90, textAlignVertical: "top" }]}
-            multiline
-            placeholder="상세 경험을 적어주세요"
-            value={formData.description}
-            onChangeText={(v) => setFormData({ ...formData, description: v })}
+            {/* 날짜 */}
+            <Text style={styles.label}>날짜 *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="YYYY-MM-DD"
+              value={formData.date}
+              onChangeText={v => setFormData({ ...formData, date: v })}
+            />
+
+            {/* 장소 */}
+            <Text style={styles.label}>장소 *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="위치를 입력하세요"
+              value={formData.location}
+              onChangeText={v => setFormData({ ...formData, location: v })}
+            />
+
+            {/* 감정 */}
+            <Text style={styles.label}>감정 *</Text>
+            <ScrollView horizontal style={{ marginBottom: 10 }} showsHorizontalScrollIndicator={false}>
+              {emotionItems.map((opt) => (
+                <Chip
+                  key={opt.value}
+                  style={
+                    formData.emotion === opt.value
+                      ? [styles.chip, styles.chipSelected]
+                      : styles.chip
+                  }
+                  selected={formData.emotion === opt.value}
+                  onPress={() =>
+                    setFormData({ ...formData, emotion: opt.value as EmotionType })
+                  }
+                >
+                  {opt.label}
+                </Chip>
+              ))}
+            </ScrollView>
+
+            {/* 태그 입력 */}
+            <Text style={styles.label}>추가 태그</Text>
+            <View style={styles.tagRow}>
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                placeholder="태그 입력 후 추가"
+                value={currentTag}
+                onChangeText={setCurrentTag}
+                onSubmitEditing={handleAddTag}
+                returnKeyType="done"
+              />
+              <Button mode="contained" onPress={handleAddTag} compact style={{ marginLeft: 8, backgroundColor: "#ddd" }}>추가</Button>
+            </View>
+            <View style={styles.tagsList}>
+              {tags.map((tag) => (
+                <Chip
+                  key={tag}
+                  style={styles.tagChip}
+                  onClose={() => handleRemoveTag(tag)}
+                  closeIcon="close"
+                >
+                  #{tag}
+                </Chip>
+              ))}
+            </View>
+
+            {/* 상세설명 */}
+            <Text style={styles.label}>상세 설명</Text>
+            <TextInput
+              style={[styles.input, { height: 90, textAlignVertical: "top" }]}
+              multiline
+              placeholder="상세 경험을 적어주세요"
+              value={formData.description}
+              onChangeText={(v) => setFormData({ ...formData, description: v })}
+            />
+
+            <Button mode="contained" onPress={handleSubmit} style={styles.saveBtn}>
+              {initialData ? "경험 수정하기" : "경험 저장하기"}
+            </Button>
+          </Card>
+
+          {/* 트렌드 선택 모달 (실제 데이터 기반) */}
+          <TrendSelectorModal
+            visible={showTrendSelector}
+            onSelect={(trend: Trend) => {
+              setSelectedTrend(trend);
+              setShowTrendSelector(false);
+            }}
+            onClose={() => setShowTrendSelector(false)}
           />
-
-          <Button mode="contained" onPress={handleSubmit} style={styles.saveBtn}>
-            {initialData ? "경험 수정하기" : "경험 저장하기"}
-          </Button>
-        </Card>
-
-        {/* 트렌드 선택 모달 */}
-        <DummyTrendSelector
-          visible={showTrendSelector}
-          onSelect={(trend: Trend) => {
-            setSelectedTrend(trend);
-            setShowTrendSelector(false);
-          }}
-          onClose={() => setShowTrendSelector(false)}
-        />
-      </ScrollView>
+        </ScrollView>
+      </SafeAreaView>
     </Provider>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#fafaff" },
-  card: { margin: 18, borderRadius: 14, padding: 14, backgroundColor: "#fff" },
+  root: {
+    flex: 1,
+    backgroundColor: "#fafaff",
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContainer: {
+    paddingBottom: 26,
+  },
+  card: {
+    margin: 18,
+    borderRadius: 14,
+    padding: 14,
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
   headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
   title: { fontSize: 18, fontWeight: "bold", flex: 1, color: "#8B5CF6" },
   label: { fontWeight: "bold", marginBottom: 2, color: "#333", fontSize: 13 },
@@ -358,6 +401,7 @@ const styles = StyleSheet.create({
     padding: 18,
     paddingBottom: 20,
     minHeight: 300,
+    maxHeight: '80%',
   },
   trendOption: {
     paddingVertical: 13,
@@ -369,4 +413,3 @@ const styles = StyleSheet.create({
   trendOptionTitle: { fontWeight: "bold", fontSize: 15, color: "#7c3aed" },
   trendOptionSubtitle: { fontSize: 12, color: "#555", marginBottom: 3 },
 });
-

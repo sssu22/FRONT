@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
+import { Modal } from "react-native";
 
 // 컴포넌트 imports
 import CreateEditPostScreen from "./screens/CreateEditPostScreen";
@@ -19,7 +20,7 @@ import MyPostsTab from "./screens/MyPostsTab";
 import TrendsTab from "./screens/TrendsTab";
 import ProfileTab from "./screens/ProfileTab";
 import PostDetailScreen from "./screens/PostDetailScreen";
-import ScrapScreen from "./screens/ScrapScreen"; // 세미콜론 제거하여 올바른 import
+import ScrapScreen from "./screens/ScrapView"; // 세미콜론 제거하여 올바른 import
 import WelcomeScreen from "./screens/auth/WelcomeScreen";
 import LoginForm from "./screens/auth/LoginForm";
 import SignUpForm from "./screens/auth/SignUpForm";
@@ -165,7 +166,7 @@ const mockExperiences: Experience[] = [
 type TabType = "home" | "posts" | "trends" | "profile";
 type AuthScreen = "welcome" | "login" | "signup";
 
-export default function DejaTrendApp() {
+export default function TrendLogApp() {
   const [user, setUser] = useState<UserType | null>(null);
   const [authScreen, setAuthScreen] = useState<AuthScreen>("welcome");
   const [experiences, setExperiences] = useState<Experience[]>(mockExperiences);
@@ -197,14 +198,14 @@ export default function DejaTrendApp() {
 
   const loadUserData = async () => {
     try {
-      const savedUser = await AsyncStorage.getItem("dejatrend-user");
+      const savedUser = await AsyncStorage.getItem("TrendLog-user");
       if (savedUser) {
         setUser(JSON.parse(savedUser));
       }
 
       // 스크랩 데이터 로드
-      const savedScrappedExperiences = await AsyncStorage.getItem("dejatrend-scrapped-experiences");
-      const savedScrappedTrends = await AsyncStorage.getItem("dejatrend-scrapped-trends");
+      const savedScrappedExperiences = await AsyncStorage.getItem("TrendLog-scrapped-experiences");
+      const savedScrappedTrends = await AsyncStorage.getItem("TrendLog-scrapped-trends");
 
       if (savedScrappedExperiences) {
         setScrappedExperiences(JSON.parse(savedScrappedExperiences));
@@ -214,7 +215,7 @@ export default function DejaTrendApp() {
       }
 
       // 사용자 활동 로그 로드
-      const savedUserActivity = await AsyncStorage.getItem("dejatrend-user-activity");
+      const savedUserActivity = await AsyncStorage.getItem("TrendLog-user-activity");
       if (savedUserActivity) {
         setUserActivity(JSON.parse(savedUserActivity));
       }
@@ -244,7 +245,7 @@ export default function DejaTrendApp() {
   // 스크랩 데이터 저장 함수들
   const saveScrappedExperiences = async () => {
     try {
-      await AsyncStorage.setItem("dejatrend-scrapped-experiences", JSON.stringify(scrappedExperiences));
+      await AsyncStorage.setItem("TrendLog-scrapped-experiences", JSON.stringify(scrappedExperiences));
     } catch (error) {
       console.error("스크랩 경험 저장 중 오류:", error);
     }
@@ -252,7 +253,7 @@ export default function DejaTrendApp() {
 
   const saveScrappedTrends = async () => {
     try {
-      await AsyncStorage.setItem("dejatrend-scrapped-trends", JSON.stringify(scrappedTrends));
+      await AsyncStorage.setItem("TrendLog-scrapped-trends", JSON.stringify(scrappedTrends));
     } catch (error) {
       console.error("스크랩 트렌드 저장 중 오류:", error);
     }
@@ -260,7 +261,7 @@ export default function DejaTrendApp() {
 
   const saveUserActivity = async () => {
     try {
-      await AsyncStorage.setItem("dejatrend-user-activity", JSON.stringify(userActivity));
+      await AsyncStorage.setItem("TrendLog-user-activity", JSON.stringify(userActivity));
     } catch (error) {
       console.error("사용자 활동 저장 중 오류:", error);
     }
@@ -269,7 +270,7 @@ export default function DejaTrendApp() {
   // 사용자 정보를 AsyncStorage에 저장
   const saveUser = async (userData: UserType) => {
     try {
-      await AsyncStorage.setItem("dejatrend-user", JSON.stringify(userData));
+      await AsyncStorage.setItem("TrendLog-user", JSON.stringify(userData));
       setUser(userData);
     } catch (error) {
       console.error("사용자 정보 저장 중 오류:", error);
@@ -286,7 +287,7 @@ export default function DejaTrendApp() {
 
   const handleLogout = async () => {
     try {
-      await AsyncStorage.removeItem("dejatrend-user");
+      await AsyncStorage.removeItem("TrendLog-user");
       setUser(null);
       setAuthScreen("welcome");
       setActiveTab("home");
@@ -531,7 +532,7 @@ export default function DejaTrendApp() {
         <View style={styles.headerContent}>
           <View style={styles.headerTop}>
             <View style={styles.headerLeft}>
-              <Text style={styles.appTitle}>DejaTrend</Text>
+              <Text style={styles.appTitle}>TrendLog</Text>
               <Text style={styles.welcomeText}>안녕하세요, {user?.name}님!</Text>
             </View>
             <TouchableOpacity onPress={() => setShowForm(true)} style={styles.addButton}>
@@ -604,29 +605,46 @@ export default function DejaTrendApp() {
       </View>
 
       {/* Experience Form Modal */}
-      {showForm && (
-        <CreateEditPostScreen
-          onSubmit={editingExperience ? handleUpdateExperience : handleAddExperience}
-          onClose={() => {
-            setShowForm(false);
-            setEditingExperience(null);
-          }}
-          initialData={editingExperience}
-        />
-      )}
+      <Modal
+        animationType="slide"
+        visible={showForm}
+        onRequestClose={() => {
+          setShowForm(false);
+          setEditingExperience(null);
+        }}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+          <CreateEditPostScreen
+            onSubmit={editingExperience ? handleUpdateExperience : handleAddExperience}
+            onClose={() => {
+              setShowForm(false);
+              setEditingExperience(null);
+            }}
+            initialData={editingExperience}
+          />
+        </SafeAreaView>
+      </Modal>
 
       {/* Experience Detail */}
-      {selectedExperience && (
-        <PostDetailScreen
-          experience={selectedExperience}
-          allExperiences={experiences}
-          onClose={handleCloseDetail}
-          isBookmarked={scrappedExperiences.includes(selectedExperience.id)}
-          onToggleBookmark={() => handleToggleExperienceScrap(selectedExperience.id)}
-          isLiked={userActivity.likes.includes(selectedExperience.id)}
-          onToggleLike={() => handleToggleLike(selectedExperience.id)}
-        />
-      )}
+      <Modal
+        animationType="slide"
+        visible={!!selectedExperience}
+        onRequestClose={handleCloseDetail}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+          {selectedExperience && (
+            <PostDetailScreen
+              experience={selectedExperience}
+              allExperiences={experiences}
+              onClose={handleCloseDetail}
+              isBookmarked={scrappedExperiences.includes(selectedExperience.id)}
+              onToggleBookmark={() => handleToggleExperienceScrap(selectedExperience.id)}
+              isLiked={userActivity.likes.includes(selectedExperience.id)}
+              onToggleLike={() => handleToggleLike(selectedExperience.id)}
+            />
+          )}
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }

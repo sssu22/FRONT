@@ -9,17 +9,17 @@ import {
 } from "react-native";
 import { Card, IconButton, Chip } from "react-native-paper";
 
-// 경험 타입
+// 경험 타입 (App.tsx와 일치하도록 수정)
 interface Experience {
   id: string;
   title: string;
   date: string;
   location: string;
-  emotion: "joy" | "excitement" | "nostalgia" | "surprise" | "love";
+  emotion: "joy" | "excitement" | "nostalgia" | "surprise" | "love" | "regret" | "sadness" | "irritation" | "anger" | "embarrassment";
   tags: string[];
   description: string;
   trendScore: number;
-  trend: {
+  trend?: {
     id: string;
     name: string;
     description: string;
@@ -40,7 +40,7 @@ interface Trend {
 }
 
 // Props 타입
-interface ScrapsViewProps {
+interface ScrapScreenProps {
   experiences: Experience[];
   scrappedExperiences: string[];
   scrappedTrends: string[];
@@ -53,13 +53,18 @@ interface ScrapsViewProps {
 type FilterType = "all" | "experiences" | "trends";
 type SortType = "date" | "name" | "popularity";
 
-// 감정 이모지
+// 감정 이모지 (10개 모두 지원)
 const emotionIcons: Record<Experience['emotion'], string> = {
   joy: "😊",
   excitement: "🔥",
   nostalgia: "💭",
   surprise: "😲",
   love: "💖",
+  regret: "😞",
+  sadness: "😢",
+  irritation: "😒",
+  anger: "😡",
+  embarrassment: "😳",
 };
 
 // 모의 트렌드 데이터
@@ -82,15 +87,31 @@ const allTrends: Trend[] = [
   },
   {
     id: "3",
-    name: "미니멀 라이프",
-    description: "단순하고 간소한 생활 방식",
-    category: "라이프스타일",
+    name: "K-POP 콘서트",
+    description: "한국 아이돌 공연 관람",
+    category: "문화",
+    popularity: 92,
+    createdAt: "2023-09-01",
+  },
+  {
+    id: "4",
+    name: "비건 라이프",
+    description: "식물성 식단과 친환경 생활",
+    category: "건강",
+    popularity: 76,
+    createdAt: "2023-07-01",
+  },
+  {
+    id: "5",
+    name: "NFT 투자",
+    description: "디지털 자산 투자 트렌드",
+    category: "투자",
     popularity: 82,
-    createdAt: "2023-07-20",
+    createdAt: "2023-05-01",
   },
 ];
 
-export default function ScrapsView({
+export default function ScrapScreen({
   experiences,
   scrappedExperiences,
   scrappedTrends,
@@ -98,7 +119,7 @@ export default function ScrapsView({
   onToggleExperienceScrap,
   onToggleTrendScrap,
   onClose,
-}: ScrapsViewProps) {
+}: ScrapScreenProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [sortBy, setSortBy] = useState<SortType>("date");
@@ -303,7 +324,10 @@ export default function ScrapsView({
                       icon="bookmark"
                       size={20}
                       iconColor="#f59e42"
-                      onPress={() => onToggleExperienceScrap(experience.id)}
+                      onPress={(e) => {
+                        e?.stopPropagation?.();
+                        onToggleExperienceScrap(experience.id);
+                      }}
                     />
                   </TouchableOpacity>
                 </Card>

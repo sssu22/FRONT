@@ -118,9 +118,9 @@ export default function TrendAnalysis({
               <Text style={styles.grayText}>키워드 없음</Text>
             ) : (
               trendData.relatedTrends.map((tag) => (
-                <Badge key={tag} style={styles.tagBadge}>
+                <view key={tag} style={styles.tagBadge}>
                   #{tag}
-                </Badge>
+                </view>
               ))
             )}
           </View>

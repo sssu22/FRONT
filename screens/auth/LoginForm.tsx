@@ -36,7 +36,7 @@ export default function LoginForm({ onLogin, onShowSignup, onBack }: LoginFormPr
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      if (formData.email === "demo@dejatrend.com" && formData.password === "demo123") {
+      if (formData.email === "demo@TrendLog.com" && formData.password === "demo123") {
         onLogin({
           id: "demo-user",
           email: formData.email,
@@ -88,7 +88,7 @@ export default function LoginForm({ onLogin, onShowSignup, onBack }: LoginFormPr
             <Ionicons name="arrow-back" size={20} color="#8B5CF6" />
           </Button>
           <View style={{ flex: 1, alignItems: "center" }}>
-            <Text style={styles.title}>DejaTrend</Text>
+            <Text style={styles.title}>TrendLog</Text>
           </View>
         </View>
         <Text style={styles.subtitle}>계정에 로그인하세요</Text>
@@ -201,7 +201,7 @@ export default function LoginForm({ onLogin, onShowSignup, onBack }: LoginFormPr
         {/* 데모 계정 안내 */}
         <View style={styles.demoBox}>
           <Text style={styles.demoLabel}>데모 계정</Text>
-          <Text style={styles.demoHint}>이메일: demo@dejatrend.com</Text>
+          <Text style={styles.demoHint}>이메일: demo@TrendLog.com</Text>
           <Text style={styles.demoHint}>비밀번호: demo123</Text>
         </View>
       </View>

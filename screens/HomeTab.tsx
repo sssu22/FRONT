@@ -5,9 +5,8 @@ import {
   FlatList,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
 } from "react-native";
-import { Card, Button, Chip } from "react-native-paper";
+import { Card, Button } from "react-native-paper";
 
 // 감정 이모지 10종 포함
 const emotionIcons = {
@@ -59,7 +58,6 @@ export default function HomeTab({
   onSearch,
   searchQuery,
 }: HomeTabProps) {
-  // 검색어 하이라이트 함수
   const highlightText = (text: string, keyword: string) => {
     if (!keyword) return text;
     const idx = text.toLowerCase().indexOf(keyword.toLowerCase());
@@ -81,66 +79,74 @@ export default function HomeTab({
     : `총 ${experiences.length}개 경험`;
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.resultsLabel}>{resultsLabel}</Text>
-
-      <Button
-        mode="contained"
-        style={styles.addBtn}
-        onPress={onAddExperience}
-        icon="plus"
-      >
-        내 첫 경험 기록하기
-      </Button>
-
-      {experiences.length === 0 ? (
-        <Text style={styles.emptyText}>
-          {searchQuery ? "다른 키워드로 검색해보세요" : "첫 경험을 추가해보세요"}
-        </Text>
-      ) : (
-        <FlatList
-          data={experiences}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <TouchableOpacity onPress={() => onExperienceClick(item)}>
-              <Card style={styles.expCard}>
-                <View style={styles.expRow}>
-                  <Text style={styles.emoji}>{emotionIcons[item.emotion]}</Text>
-                  <View style={styles.expMain}>
-                    <Text style={styles.expTitle} numberOfLines={1}>
-                      {item.title}
-                    </Text>
-                    <Text style={styles.expDesc} numberOfLines={2}>
-                      {searchQuery
-                        ? highlightText(item.description, searchQuery)
-                        : item.description}
-                    </Text>
-                    <Text style={styles.expMeta}>
-                      {item.location} | {new Date(item.date).toLocaleDateString("ko-KR")}
-                    </Text>
-                  </View>
-                  <View style={styles.trendBox}>
-                    <Text style={styles.trendLabel}>트렌드</Text>
-                    <Text style={styles.trendScore}>{item.trendScore}</Text>
-                  </View>
-                </View>
-              </Card>
-            </TouchableOpacity>
-          )}
-          contentContainerStyle={{ paddingBottom: 40 }}
-        />
+    <FlatList
+      data={experiences}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => (
+        <TouchableOpacity onPress={() => onExperienceClick(item)}>
+          <Card style={styles.expCard}>
+            <View style={styles.expRow}>
+              <Text style={styles.emoji}>{emotionIcons[item.emotion]}</Text>
+              <View style={styles.expMain}>
+                <Text style={styles.expTitle} numberOfLines={1}>
+                  {item.title}
+                </Text>
+                <Text style={styles.expDesc} numberOfLines={2}>
+                  {searchQuery
+                    ? highlightText(item.description, searchQuery)
+                    : item.description}
+                </Text>
+                <Text style={styles.expMeta}>
+                  {item.location} |{" "}
+                  {new Date(item.date).toLocaleDateString("ko-KR")}
+                </Text>
+              </View>
+              <View style={styles.trendBox}>
+                <Text style={styles.trendLabel}>트렌드</Text>
+                <Text style={styles.trendScore}>{item.trendScore}</Text>
+              </View>
+            </View>
+          </Card>
+        </TouchableOpacity>
       )}
-
-      <Text style={styles.bottomHint}>
-        당신의 특별한 순간이 어떤 트렌드였는지 알아보세요
-      </Text>
-    </ScrollView>
+      ListHeaderComponent={
+        <View>
+          <Text style={styles.resultsLabel}>{resultsLabel}</Text>
+          <Button
+            mode="contained"
+            style={styles.addBtn}
+            onPress={onAddExperience}
+            icon="plus"
+          >
+            내 첫 경험 기록하기
+          </Button>
+          {experiences.length === 0 && (
+            <Text style={styles.emptyText}>
+              {searchQuery
+                ? "다른 키워드로 검색해보세요"
+                : "첫 경험을 추가해보세요"}
+            </Text>
+          )}
+        </View>
+      }
+      ListFooterComponent={
+        <Text style={styles.bottomHint}>
+          당신의 특별한 순간이 어떤 트렌드였는지 알아보세요
+        </Text>
+      }
+      contentContainerStyle={styles.container}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fafaff", padding: 16 },
-  resultsLabel: { fontWeight: "bold", fontSize: 15, marginBottom: 8, color: "#6b21a8" },
+  container: { backgroundColor: "#fafaff", padding: 16 },
+  resultsLabel: {
+    fontWeight: "bold",
+    fontSize: 15,
+    marginBottom: 8,
+    color: "#6b21a8",
+  },
   addBtn: {
     borderRadius: 8,
     backgroundColor: "#8b5cf6",

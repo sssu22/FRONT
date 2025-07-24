@@ -9,6 +9,7 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  SafeAreaView,
 } from "react-native";
 import { Button, Checkbox } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -95,180 +96,200 @@ export default function SignupForm({ onSignup, onShowLogin, onBack }: SignupForm
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.root}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView contentContainerStyle={styles.scrollWrapper} keyboardShouldPersistTaps="handled">
-        <View style={styles.card}>
-          {/* 헤더 */}
-          <View style={styles.headerRow}>
-            <Button mode="text" onPress={onBack} compact style={{ marginRight: 4 }}>
-              <Ionicons name="arrow-back" size={20} color="#8B5CF6" />
-            </Button>
-            <View style={{ flex: 1, alignItems: "center" }}>
-              <Text style={styles.title}>DejaTrend</Text>
+    <SafeAreaView style={styles.root}>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollWrapper} 
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.card}>
+            {/* 헤더 */}
+            <View style={styles.headerRow}>
+              <Button mode="text" onPress={onBack} compact style={{ marginRight: 4 }}>
+                <Ionicons name="arrow-back" size={20} color="#8B5CF6" />
+              </Button>
+              <View style={{ flex: 1, alignItems: "center" }}>
+                <Text style={styles.title}>TrendLog</Text>
+              </View>
             </View>
-          </View>
-          <Text style={styles.subtitle}>새 계정을 만드세요</Text>
+            <Text style={styles.subtitle}>새 계정을 만드세요</Text>
 
-          {error.length > 0 && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
+            {error.length > 0 && (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
+
+            {/* 이름 */}
+            <Text style={styles.label}>이름</Text>
+            <View style={styles.inputRow}>
+              <MaterialIcons name="person-outline" size={20} color="#bbb" style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { paddingLeft: 38 }]}
+                placeholder="이름을 입력하세요"
+                value={formData.name}
+                onChangeText={(v) => setFormData({ ...formData, name: v })}
+                editable={!isLoading}
+                returnKeyType="next"
+              />
             </View>
-          )}
 
-          {/* 이름 */}
-          <Text style={styles.label}>이름</Text>
-          <View style={styles.inputRow}>
-            <MaterialIcons name="person-outline" size={20} color="#bbb" style={styles.inputIcon} />
-            <TextInput
-              style={[styles.input, { paddingLeft: 38 }]}
-              placeholder="이름을 입력하세요"
-              value={formData.name}
-              onChangeText={(v) => setFormData({ ...formData, name: v })}
-              editable={!isLoading}
-              returnKeyType="next"
-            />
-          </View>
-
-          {/* 이메일 */}
-          <Text style={[styles.label, { marginTop: 12 }]}>이메일</Text>
-          <View style={styles.inputRow}>
-            <MaterialIcons name="mail-outline" size={20} color="#bbb" style={styles.inputIcon} />
-            <TextInput
-              style={[styles.input, { paddingLeft: 38 }]}
-              placeholder="your@email.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={formData.email}
-              onChangeText={(v) => setFormData({ ...formData, email: v })}
-              editable={!isLoading}
-              returnKeyType="next"
-            />
-          </View>
-
-          {/* 비밀번호 */}
-          <Text style={[styles.label, { marginTop: 12 }]}>비밀번호</Text>
-          <View style={styles.inputRow}>
-            <MaterialIcons name="lock-outline" size={20} color="#bbb" style={styles.inputIcon} />
-            <TextInput
-              style={[styles.input, { paddingLeft: 38, paddingRight: 38 }]}
-              placeholder="비밀번호 (최소 6자)"
-              secureTextEntry={!showPassword}
-              value={formData.password}
-              onChangeText={(v) => setFormData({ ...formData, password: v })}
-              editable={!isLoading}
-              returnKeyType="next"
-            />
-            <TouchableOpacity
-              onPress={() => setShowPassword((prev) => !prev)}
-              style={styles.eyeBtn}
-              disabled={isLoading}
-            >
-              <Ionicons
-                name={showPassword ? "eye-off" : "eye"}
-                size={18}
-                color="#aaa"
+            {/* 이메일 */}
+            <Text style={[styles.label, { marginTop: 12 }]}>이메일</Text>
+            <View style={styles.inputRow}>
+              <MaterialIcons name="mail-outline" size={20} color="#bbb" style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { paddingLeft: 38 }]}
+                placeholder="your@email.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={formData.email}
+                onChangeText={(v) => setFormData({ ...formData, email: v })}
+                editable={!isLoading}
+                returnKeyType="next"
               />
-            </TouchableOpacity>
-          </View>
+            </View>
 
-          {/* 비밀번호 확인 */}
-          <Text style={[styles.label, { marginTop: 12 }]}>비밀번호 확인</Text>
-          <View style={styles.inputRow}>
-            <MaterialIcons name="lock-outline" size={20} color="#bbb" style={styles.inputIcon} />
-            <TextInput
-              style={[styles.input, { paddingLeft: 38, paddingRight: 38 }]}
-              placeholder="비밀번호를 다시 입력하세요"
-              secureTextEntry={!showConfirmPassword}
-              value={formData.confirmPassword}
-              onChangeText={(v) => setFormData({ ...formData, confirmPassword: v })}
-              editable={!isLoading}
-              returnKeyType="done"
-            />
-            <TouchableOpacity
-              onPress={() => setShowConfirmPassword((prev) => !prev)}
-              style={styles.eyeBtn}
-              disabled={isLoading}
-            >
-              <Ionicons
-                name={showConfirmPassword ? "eye-off" : "eye"}
-                size={18}
-                color="#aaa"
+            {/* 비밀번호 */}
+            <Text style={[styles.label, { marginTop: 12 }]}>비밀번호</Text>
+            <View style={styles.inputRow}>
+              <MaterialIcons name="lock-outline" size={20} color="#bbb" style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { paddingLeft: 38, paddingRight: 38 }]}
+                placeholder="비밀번호 (최소 6자)"
+                secureTextEntry={!showPassword}
+                value={formData.password}
+                onChangeText={(v) => setFormData({ ...formData, password: v })}
+                editable={!isLoading}
+                returnKeyType="next"
               />
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity
+                onPress={() => setShowPassword((prev) => !prev)}
+                style={styles.eyeBtn}
+                disabled={isLoading}
+              >
+                <Ionicons
+                  name={showPassword ? "eye-off" : "eye"}
+                  size={18}
+                  color="#aaa"
+                />
+              </TouchableOpacity>
+            </View>
 
-          {/* 약관 동의 */}
-          <View style={styles.termsRow}>
-            <Checkbox
-              status={agreeTerms ? "checked" : "unchecked"}
-              onPress={() => setAgreeTerms((prev) => !prev)}
-              disabled={isLoading}
-            />
-            <Text style={styles.termsText}>
-              <Text style={{ fontWeight: "bold" }}>이용약관</Text> 및{" "}
-              <Text style={{ fontWeight: "bold" }}>개인정보처리방침</Text>에 동의합니다
-            </Text>
-          </View>
+            {/* 비밀번호 확인 */}
+            <Text style={[styles.label, { marginTop: 12 }]}>비밀번호 확인</Text>
+            <View style={styles.inputRow}>
+              <MaterialIcons name="lock-outline" size={20} color="#bbb" style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { paddingLeft: 38, paddingRight: 38 }]}
+                placeholder="비밀번호를 다시 입력하세요"
+                secureTextEntry={!showConfirmPassword}
+                value={formData.confirmPassword}
+                onChangeText={(v) => setFormData({ ...formData, confirmPassword: v })}
+                editable={!isLoading}
+                returnKeyType="done"
+              />
+              <TouchableOpacity
+                onPress={() => setShowConfirmPassword((prev) => !prev)}
+                style={styles.eyeBtn}
+                disabled={isLoading}
+              >
+                <Ionicons
+                  name={showConfirmPassword ? "eye-off" : "eye"}
+                  size={18}
+                  color="#aaa"
+                />
+              </TouchableOpacity>
+            </View>
 
-          {/* 회원가입 버튼 */}
-          <Button
-            mode="contained"
-            onPress={handleSubmit}
-            style={styles.signupBtn}
-            disabled={isLoading}
-            contentStyle={{ height: 45 }}
-          >
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={{ color: "#fff", fontWeight: "bold" }}>계정 만들기</Text>
-            )}
-          </Button>
-
-          {/* 구분선 */}
-          <View style={styles.separatorRow}>
-            <View style={styles.separatorLine} />
-            <Text style={styles.separatorText}>또는</Text>
-            <View style={styles.separatorLine} />
-          </View>
-
-          {/* Google 회원가입 */}
-          <Button
-            mode="outlined"
-            onPress={handleGoogleSignup}
-            disabled={isLoading}
-            style={styles.googleBtn}
-            contentStyle={{ height: 44 }}
-            icon={({ color }) => <Ionicons name="logo-google" size={18} color={color || "#EA4335"} />}
-          >
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#4285F4" />
-            ) : (
-              <Text style={{ color: "#222" }}>Google로 회원가입</Text>
-            )}
-          </Button>
-
-          {/* 로그인 링크 */}
-          <View style={{ alignItems: "center", marginVertical: 15 }}>
-            <Text style={{ color: "#666", fontSize: 13 }}>
-              이미 계정이 있으신가요?{" "}
-              <Text style={{ color: "#8B5CF6", fontWeight: "bold" }} onPress={onShowLogin}>
-                로그인
+            {/* 약관 동의 */}
+            <View style={styles.termsRow}>
+              <Checkbox
+                status={agreeTerms ? "checked" : "unchecked"}
+                onPress={() => setAgreeTerms((prev) => !prev)}
+                disabled={isLoading}
+              />
+              <Text style={styles.termsText}>
+                <Text style={{ fontWeight: "bold" }}>이용약관</Text> 및{" "}
+                <Text style={{ fontWeight: "bold" }}>개인정보처리방침</Text>에 동의합니다
               </Text>
-            </Text>
+            </View>
+
+            {/* 회원가입 버튼 */}
+            <Button
+              mode="contained"
+              onPress={handleSubmit}
+              style={styles.signupBtn}
+              disabled={isLoading}
+              contentStyle={{ height: 45 }}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={{ color: "#fff", fontWeight: "bold" }}>계정 만들기</Text>
+              )}
+            </Button>
+
+            {/* 구분선 */}
+            <View style={styles.separatorRow}>
+              <View style={styles.separatorLine} />
+              <Text style={styles.separatorText}>또는</Text>
+              <View style={styles.separatorLine} />
+            </View>
+
+            {/* Google 회원가입 */}
+            <Button
+              mode="outlined"
+              onPress={handleGoogleSignup}
+              disabled={isLoading}
+              style={styles.googleBtn}
+              contentStyle={{ height: 44 }}
+              icon={({ color }) => <Ionicons name="logo-google" size={18} color={color || "#EA4335"} />}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#4285F4" />
+              ) : (
+                <Text style={{ color: "#222" }}>Google로 회원가입</Text>
+              )}
+            </Button>
+
+            {/* 로그인 링크 */}
+            <View style={{ alignItems: "center", marginVertical: 15 }}>
+              <Text style={{ color: "#666", fontSize: 13 }}>
+                이미 계정이 있으신가요?{" "}
+                <Text style={{ color: "#8B5CF6", fontWeight: "bold" }} onPress={onShowLogin}>
+                  로그인
+                </Text>
+              </Text>
+            </View>
           </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F8F4FF" },
-  scrollWrapper: { padding: 22, flexGrow: 1, justifyContent: "center" },
+  root: { 
+    flex: 1, 
+    backgroundColor: "#F8F4FF" 
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollWrapper: { 
+    padding: 22, 
+    minHeight: '100%',
+    justifyContent: "center" 
+  },
   card: {
     backgroundColor: "#fff",
     borderRadius: 18,
@@ -276,6 +297,7 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 14,
+    shadowOffset: { width: 0, height: 2 },
     elevation: 8,
   },
   headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },

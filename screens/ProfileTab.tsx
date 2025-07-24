@@ -42,7 +42,17 @@ interface Experience {
   date: string;
   location: string;
   emotion: EmotionType;
+  tags: string[];
+  description: string;
   trendScore: number;
+  trend?: {
+    id: string;
+    name: string;
+    description: string;
+    category: string;
+    popularity: number;
+    createdAt: string;
+  };
 }
 
 interface UserActivity {
@@ -54,12 +64,19 @@ interface UserActivity {
   categoryInterests: Record<string, number>;
 }
 
+interface UserType {
+  id: string;
+  email: string;
+  name: string;
+  avatar?: string;
+}
+
 interface ProfileTabProps {
   experiences: Experience[];
   onExperienceClick: (exp: Experience) => void;
   onLogout: () => void;
   onShowScraps: () => void;
-  user: { id: string; email: string; name: string; avatar?: string };
+  user: UserType;
   scrappedCount: number;
   userActivity: UserActivity;
 }

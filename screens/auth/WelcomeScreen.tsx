@@ -18,7 +18,7 @@ export default function WelcomeScreen({ onShowLogin, onShowSignup }: WelcomeScre
               <Text style={styles.logoText}>D</Text>
             </View>
             <View style={{ marginTop: 8, alignItems: "center" }}>
-              <Text style={styles.title}>DejaTrend</Text>
+              <Text style={styles.title}>TrendLog</Text>
               <Text style={styles.subtitle}>나의 첫 경험, 세상의 첫 트렌드</Text>
             </View>
           </View>

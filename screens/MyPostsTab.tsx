@@ -10,7 +10,6 @@ import {
 } from "react-native";
 import { Button, Chip, Card } from "react-native-paper";
 
-// 경험 데이터 타입
 interface Experience {
   id: string;
   title: string;
@@ -32,7 +31,6 @@ interface Experience {
   trendScore: number;
 }
 
-// 이모지 매핑 (10개 모두 지원)
 const emotionIcons: Record<Experience["emotion"], string> = {
   joy: "😊",
   excitement: "🔥",
@@ -49,16 +47,21 @@ const emotionIcons: Record<Experience["emotion"], string> = {
 interface MyPostsTabProps {
   experiences: Experience[];
   onExperienceClick: (experience: Experience) => void;
+  onEditExperience: (experience: Experience) => void;
+  onDeleteExperience: (experienceId: string) => void;
 }
 
-export default function MyPostsTab({ experiences, onExperienceClick }: MyPostsTabProps) {
+export default function MyPostsTab({
+  experiences,
+  onExperienceClick,
+  onEditExperience,
+  onDeleteExperience,
+}: MyPostsTabProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("");
 
-  // 위치 집합 만들기
   const locations = Array.from(new Set(experiences.map((exp) => exp.location)));
 
-  // 검색/위치 필터
   const filteredExperiences = experiences.filter(
     (exp) =>
       (!searchQuery ||
@@ -68,7 +71,6 @@ export default function MyPostsTab({ experiences, onExperienceClick }: MyPostsTa
       (!selectedLocation || exp.location === selectedLocation)
   );
 
-  // 검색어 하이라이트(now 지원 안 해서 단순 표기)
   const highlightText = (text: string, keyword: string) => {
     if (!keyword) return text;
     const idx = text.toLowerCase().indexOf(keyword.toLowerCase());
@@ -85,78 +87,94 @@ export default function MyPostsTab({ experiences, onExperienceClick }: MyPostsTa
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ flexGrow: 1 }}>
-      {/* 검색창 */}
-      <TextInput
-        style={styles.input}
-        placeholder="경험 제목, 내용, 위치 등 검색"
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-      />
+    <FlatList
+      data={filteredExperiences}
+      keyExtractor={(item) => item.id}
+      ListHeaderComponent={
+        <View>
+          <TextInput
+            style={styles.input}
+            placeholder="경험 제목, 내용, 위치 등 검색"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
 
-      {/* 위치 필터 */}
-      <ScrollView horizontal style={styles.locationRow} showsHorizontalScrollIndicator={false}>
-        <Chip
-          selected={!selectedLocation}
-          onPress={() => setSelectedLocation("")}
-          style={!selectedLocation ? styles.chipSelected : styles.chip}
-        >
-          전체
-        </Chip>
-        {locations.map((loc) => (
-          <Chip
-            key={loc}
-            selected={selectedLocation === loc}
-            onPress={() => setSelectedLocation(loc)}
-            style={selectedLocation === loc ? styles.chipSelected : styles.chip}
-          >
-            {loc}
-          </Chip>
-        ))}
-      </ScrollView>
+          <ScrollView horizontal style={styles.locationRow} showsHorizontalScrollIndicator={false}>
+            <Chip
+              selected={!selectedLocation}
+              onPress={() => setSelectedLocation("")}
+              style={!selectedLocation ? styles.chipSelected : styles.chip}
+            >
+              전체
+            </Chip>
+            {locations.map((loc) => (
+              <Chip
+                key={loc}
+                selected={selectedLocation === loc}
+                onPress={() => setSelectedLocation(loc)}
+                style={selectedLocation === loc ? styles.chipSelected : styles.chip}
+              >
+                {loc}
+              </Chip>
+            ))}
+          </ScrollView>
 
-      {/* 경험수 & 선택된 위치 */}
-      <Text style={styles.countText}>
-        총 {filteredExperiences.length}개 경험
-        {selectedLocation ? ` • ${selectedLocation}` : ""}
-      </Text>
-
-      {/* 경험 리스트 */}
-      {filteredExperiences.length === 0 ? (
+          <Text style={styles.countText}>
+            총 {filteredExperiences.length}개 경험
+            {selectedLocation ? ` • ${selectedLocation}` : ""}
+          </Text>
+        </View>
+      }
+      ListEmptyComponent={
         <Text style={styles.emptyText}>
           {searchQuery || selectedLocation
             ? "다른 조건으로 검색해보세요"
             : "첫 경험을 기록해보세요"}
         </Text>
-      ) : (
-        <FlatList
-          data={filteredExperiences}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <TouchableOpacity style={styles.expCard} onPress={() => onExperienceClick(item)}>
-              <View style={styles.expRow}>
-                <Text style={styles.expEmoji}>{emotionIcons[item.emotion]}</Text>
-                <View style={styles.expInfo}>
-                  <Text style={styles.expTitle}>{item.title}</Text>
-                  <Text style={styles.expDesc}>
-                    {searchQuery
-                      ? highlightText(item.description, searchQuery)
-                      : item.description}
-                  </Text>
-                  <Text style={styles.expMeta}>
-                    {item.location} | {new Date(item.date).toLocaleDateString("ko-KR")}
-                  </Text>
-                </View>
-                <View style={styles.expScoreBox}>
-                  <Text style={styles.expScore}>{item.trendScore}</Text>
-                </View>
+      }
+      renderItem={({ item }) => (
+        <TouchableOpacity style={styles.expCard} onPress={() => onExperienceClick(item)}>
+          <View style={styles.expRow}>
+            <Text style={styles.expEmoji}>{emotionIcons[item.emotion]}</Text>
+            <View style={styles.expInfo}>
+              <Text style={styles.expTitle}>{item.title}</Text>
+              <Text style={styles.expDesc}>
+                {searchQuery
+                  ? highlightText(item.description, searchQuery)
+                  : item.description}
+              </Text>
+              <Text style={styles.expMeta}>
+                {item.location} | {new Date(item.date).toLocaleDateString("ko-KR")}
+              </Text>
+            </View>
+            <View style={styles.expActions}>
+              <Text style={styles.expScore}>{item.trendScore}</Text>
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    onEditExperience(item);
+                  }}
+                  style={styles.actionButton}
+                >
+                  <Text style={styles.actionButtonText}>편집</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    onDeleteExperience(item.id);
+                  }}
+                  style={[styles.actionButton, styles.deleteButton]}
+                >
+                  <Text style={[styles.actionButtonText, styles.deleteButtonText]}>삭제</Text>
+                </TouchableOpacity>
               </View>
-            </TouchableOpacity>
-          )}
-          contentContainerStyle={{ paddingBottom: 40 }}
-        />
+            </View>
+          </View>
+        </TouchableOpacity>
       )}
-    </ScrollView>
+      contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+    />
   );
 }
 
@@ -226,7 +244,7 @@ const styles = StyleSheet.create({
     color: "#7c3aed",
     fontSize: 12,
   },
-  expScoreBox: {
+  expActions: {
     alignItems: "flex-end",
     marginLeft: 7,
   },
@@ -234,6 +252,28 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#9333ea",
     fontSize: 15,
+  },
+  actionButtons: {
+    flexDirection: "row",
+    marginTop: 8,
+    gap: 4,
+  },
+  actionButton: {
+    backgroundColor: "#7C3AED",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  deleteButton: {
+    backgroundColor: "#EF4444",
+  },
+  actionButtonText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  deleteButtonText: {
+    color: "white",
   },
   emptyText: {
     textAlign: "center",

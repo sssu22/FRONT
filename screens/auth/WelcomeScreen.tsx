@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { View, Text, StyleSheet, ScrollView, SafeAreaView } from "react-native";
 import { Card, Button } from "react-native-paper";
 
 interface WelcomeScreenProps {
@@ -9,76 +9,78 @@ interface WelcomeScreenProps {
 
 export default function WelcomeScreen({ onShowLogin, onShowSignup }: WelcomeScreenProps) {
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Card style={styles.card}>
-        <View style={styles.content}>
-          {/* Logo & Title */}
-          <View style={styles.logoWrapper}>
-            <View style={styles.logoCircle}>
-              <Text style={styles.logoText}>D</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.container}>
+        <Card style={styles.card}>
+          <View style={styles.content}>
+            {/* Logo & Title */}
+            <View style={styles.logoWrapper}>
+              <View style={styles.logoCircle}>
+                <Text style={styles.logoText}>D</Text>
+              </View>
+              <View style={{ marginTop: 8, alignItems: "center" }}>
+                <Text style={styles.title}>TrendLog</Text>
+                <Text style={styles.subtitle}>나의 첫 경험, 세상의 첫 트렌드</Text>
+              </View>
             </View>
-            <View style={{ marginTop: 8, alignItems: "center" }}>
-              <Text style={styles.title}>TrendLog</Text>
-              <Text style={styles.subtitle}>나의 첫 경험, 세상의 첫 트렌드</Text>
+
+            {/* Features */}
+            <View style={styles.features}>
+              <FeatureItem
+                emoji="📝"
+                title="첫 경험 기록"
+                description="특별한 순간들을 기록하고 공유하세요"
+                bgColor="#EDE9FE"
+                textColor="#7C3AED"
+              />
+              <FeatureItem
+                emoji="📊"
+                title="트렌드 분석"
+                description="당신의 경험이 어떤 트렌드였는지 확인하세요"
+                bgColor="#FCE7F3"
+                textColor="#DB2777"
+              />
+              <FeatureItem
+                emoji="🗺️"
+                title="경험 지도"
+                description="지도에서 경험들을 시각적으로 탐색하세요"
+                bgColor="#DBEAFE"
+                textColor="#2563EB"
+              />
             </View>
-          </View>
 
-          {/* Features */}
-          <View style={styles.features}>
-            <FeatureItem
-              emoji="📝"
-              title="첫 경험 기록"
-              description="특별한 순간들을 기록하고 공유하세요"
-              bgColor="#EDE9FE"
-              textColor="#7C3AED"
-            />
-            <FeatureItem
-              emoji="📊"
-              title="트렌드 분석"
-              description="당신의 경험이 어떤 트렌드였는지 확인하세요"
-              bgColor="#FCE7F3"
-              textColor="#DB2777"
-            />
-            <FeatureItem
-              emoji="🗺️"
-              title="경험 지도"
-              description="지도에서 경험들을 시각적으로 탐색하세요"
-              bgColor="#DBEAFE"
-              textColor="#2563EB"
-            />
-          </View>
+            {/* Actions */}
+            <View style={styles.actions}>
+              <Button
+                mode="contained"
+                onPress={onShowSignup}
+                contentStyle={styles.buttonContent}
+                style={styles.signupBtn}
+                uppercase={false}
+              >
+                시작하기
+              </Button>
+              <Button
+                mode="outlined"
+                onPress={onShowLogin}
+                contentStyle={styles.buttonContent}
+                style={styles.loginBtn}
+                uppercase={false}
+              >
+                이미 계정이 있어요
+              </Button>
+            </View>
 
-          {/* Actions */}
-          <View style={styles.actions}>
-            <Button
-              mode="contained"
-              onPress={onShowSignup}
-              contentStyle={styles.buttonContent}
-              style={styles.signupBtn}
-              uppercase={false}
-            >
-              시작하기
-            </Button>
-            <Button
-              mode="outlined"
-              onPress={onShowLogin}
-              contentStyle={styles.buttonContent}
-              style={styles.loginBtn}
-              uppercase={false}
-            >
-              이미 계정이 있어요
-            </Button>
+            {/* Footer */}
+            <Text style={styles.footerText}>
+              가입하면{" "}
+              <Text style={styles.highlight}>이용약관</Text> 및{" "}
+              <Text style={styles.highlight}>개인정보처리방침</Text>에 동의하는 것으로 간주됩니다.
+            </Text>
           </View>
-
-          {/* Footer */}
-          <Text style={styles.footerText}>
-            가입하면{" "}
-            <Text style={styles.highlight}>이용약관</Text> 및{" "}
-            <Text style={styles.highlight}>개인정보처리방침</Text>에 동의하는 것으로 간주됩니다.
-          </Text>
-        </View>
-      </Card>
-    </ScrollView>
+        </Card>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -105,11 +107,17 @@ function FeatureItem({ emoji, title, description, bgColor, textColor }: FeatureI
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "rgba(240, 238, 255, 1)",
+  },
+  scrollView: {
+    flex: 1,
+  },
   container: {
-    flexGrow: 1,
-    backgroundColor: "rgba(240, 238, 255, 1)", // 비슷한 그라데이션 배경 대신 연보라 톤
     paddingVertical: 40,
     paddingHorizontal: 16,
+    minHeight: '100%',
     justifyContent: "center",
   },
   card: {
@@ -118,6 +126,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     elevation: 6,
     backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
   content: {
     padding: 24,
@@ -145,13 +157,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: "bold",
-    backgroundColor: "linear-gradient(90deg, #7C3AED 0%, #DB2777 100%)",
-    color: "#7C3AED", // 그라데이션 효과는 네이티브에서 복잡해 생략
+    color: "#7C3AED",
   },
   subtitle: {
     marginTop: 6,
     color: "#555",
     fontSize: 14,
+    textAlign: "center",
   },
 
   features: {

@@ -1,3 +1,4 @@
+// MyPostsTab.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -6,43 +7,11 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
+  SafeAreaView,
+  Modal,
 } from "react-native";
-import { Button, Chip, Card } from "react-native-paper";
-
-interface Experience {
-  id: string;
-  title: string;
-  description: string;
-  location: string;
-  date: string;
-  emotion:
-    | "joy"
-    | "excitement"
-    | "nostalgia"
-    | "surprise"
-    | "love"
-    | "regret"
-    | "sadness"
-    | "irritation"
-    | "anger"
-    | "embarrassment";
-  tags: string[];
-  trendScore: number;
-}
-
-const emotionIcons: Record<Experience["emotion"], string> = {
-  joy: "😊",
-  excitement: "🔥",
-  nostalgia: "💭",
-  surprise: "😲",
-  love: "💖",
-  regret: "😞",
-  sadness: "😢",
-  irritation: "😒",
-  anger: "😡",
-  embarrassment: "😳",
-};
+import { Ionicons } from "@expo/vector-icons";
+import DropDownPicker from "react-native-dropdown-picker";
 
 interface MyPostsTabProps {
   experiences: Experience[];
@@ -51,6 +20,31 @@ interface MyPostsTabProps {
   onDeleteExperience: (experienceId: string) => void;
 }
 
+interface Experience {
+  id: string;
+  title: string;
+  description: string;
+  location: string;
+  date: string;
+  emotion:
+    | "joy" | "excitement" | "nostalgia" | "surprise" | "love"
+    | "regret" | "sadness" | "irritation" | "anger" | "embarrassment";
+  tags: string[];
+  trendScore: number;
+}
+
+const emotionIcons: Record<Experience["emotion"], string> = {
+  joy: "😊", excitement: "🔥", nostalgia: "💭", surprise: "😲",
+  love: "💖", regret: "😞", sadness: "😢", irritation: "😒",
+  anger: "😡", embarrassment: "😳",
+};
+
+const emotionLabels: Record<Experience["emotion"], string> = {
+  joy: "기쁨", excitement: "흥분", nostalgia: "향수", surprise: "놀람",
+  love: "사랑", regret: "후회", sadness: "슬픔", irritation: "짜증",
+  anger: "분노", embarrassment: "당황",
+};
+
 export default function MyPostsTab({
   experiences,
   onExperienceClick,
@@ -58,227 +52,219 @@ export default function MyPostsTab({
   onDeleteExperience,
 }: MyPostsTabProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedLocation, setSelectedLocation] = useState("");
+  const [sortOption, setSortOption] = useState("최신순");
+  const [emotionFilter, setEmotionFilter] = useState("전체");
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [sortOpen, setSortOpen] = useState(false);
+  const [emotionOpen, setEmotionOpen] = useState(false);
 
-  const locations = Array.from(new Set(experiences.map((exp) => exp.location)));
+  const sortOptions = ["최신순", "트렌드순", "제목순"];
 
-  const filteredExperiences = experiences.filter(
-    (exp) =>
-      (!searchQuery ||
-        exp.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        exp.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        exp.location.toLowerCase().includes(searchQuery.toLowerCase())) &&
-      (!selectedLocation || exp.location === selectedLocation)
-  );
-
-  const highlightText = (text: string, keyword: string) => {
-    if (!keyword) return text;
-    const idx = text.toLowerCase().indexOf(keyword.toLowerCase());
-    if (idx === -1) return text;
-    return (
-      <>
-        {text.substring(0, idx)}
-        <Text style={{ color: "#c026d3", fontWeight: "bold" }}>
-          {text.substring(idx, idx + keyword.length)}
-        </Text>
-        {text.substring(idx + keyword.length)}
-      </>
-    );
-  };
+  const filtered = experiences
+    .filter((exp) =>
+      exp.title.includes(searchQuery) ||
+      exp.description.includes(searchQuery) ||
+      exp.location.includes(searchQuery)
+    )
+    .filter((exp) =>
+      emotionFilter === "전체" ? true : emotionLabels[exp.emotion] === emotionFilter
+    )
+    .sort((a, b) => {
+      if (sortOption === "최신순") return new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (sortOption === "트렌드순") return b.trendScore - a.trendScore;
+      if (sortOption === "제목순") return a.title.localeCompare(b.title);
+      return 0;
+    });
 
   return (
-    <FlatList
-      data={filteredExperiences}
-      keyExtractor={(item) => item.id}
-      ListHeaderComponent={
+    <SafeAreaView style={styles.container}>
+      {/* 헤더 */}
+      <View style={styles.header}>
         <View>
-          <TextInput
-            style={styles.input}
-            placeholder="경험 제목, 내용, 위치 등 검색"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-
-          <ScrollView horizontal style={styles.locationRow} showsHorizontalScrollIndicator={false}>
-            <Chip
-              selected={!selectedLocation}
-              onPress={() => setSelectedLocation("")}
-              style={!selectedLocation ? styles.chipSelected : styles.chip}
-            >
-              전체
-            </Chip>
-            {locations.map((loc) => (
-              <Chip
-                key={loc}
-                selected={selectedLocation === loc}
-                onPress={() => setSelectedLocation(loc)}
-                style={selectedLocation === loc ? styles.chipSelected : styles.chip}
-              >
-                {loc}
-              </Chip>
-            ))}
-          </ScrollView>
-
-          <Text style={styles.countText}>
-            총 {filteredExperiences.length}개 경험
-            {selectedLocation ? ` • ${selectedLocation}` : ""}
-          </Text>
+          <View>
+            <Text style={[styles.title, { marginLeft: 16 }]}>내 게시글</Text>
+            <Text style={[styles.subtitle, { marginLeft: 16 }]}>총 {experiences.length}개 경험</Text>
+          </View>
         </View>
-      }
-      ListEmptyComponent={
-        <Text style={styles.emptyText}>
-          {searchQuery || selectedLocation
-            ? "다른 조건으로 검색해보세요"
-            : "첫 경험을 기록해보세요"}
-        </Text>
-      }
-      renderItem={({ item }) => (
-        <TouchableOpacity style={styles.expCard} onPress={() => onExperienceClick(item)}>
-          <View style={styles.expRow}>
-            <Text style={styles.expEmoji}>{emotionIcons[item.emotion]}</Text>
-            <View style={styles.expInfo}>
-              <Text style={styles.expTitle}>{item.title}</Text>
-              <Text style={styles.expDesc}>
-                {searchQuery
-                  ? highlightText(item.description, searchQuery)
-                  : item.description}
+        <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
+          <Ionicons name="options" size={16} color="#000" />
+        </TouchableOpacity>
+      </View>
+
+      {/* 검색창 */}
+      <TextInput
+        placeholder="내 경험 검색..."
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        style={styles.input}
+      />
+
+      {/* 경험 목록 */}
+      <FlatList
+        data={filtered}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <TouchableOpacity onPress={() => onExperienceClick(item)}>
+              <Text style={styles.cardTitle}>{item.title}</Text>
+              <Text style={styles.meta}>
+                {emotionIcons[item.emotion]} {item.location} • {new Date(item.date).toLocaleDateString("ko-KR")}
               </Text>
-              <Text style={styles.expMeta}>
-                {item.location} | {new Date(item.date).toLocaleDateString("ko-KR")}
-              </Text>
-            </View>
-            <View style={styles.expActions}>
-              <Text style={styles.expScore}>{item.trendScore}</Text>
-              <View style={styles.actionButtons}>
-                <TouchableOpacity
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    onEditExperience(item);
-                  }}
-                  style={styles.actionButton}
-                >
-                  <Text style={styles.actionButtonText}>편집</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    onDeleteExperience(item.id);
-                  }}
-                  style={[styles.actionButton, styles.deleteButton]}
-                >
-                  <Text style={[styles.actionButtonText, styles.deleteButtonText]}>삭제</Text>
-                </TouchableOpacity>
-              </View>
+              <Text style={styles.desc}>{item.description}</Text>
+              <Text style={styles.trend}>🔥 트렌드 점수: {item.trendScore}</Text>
+            </TouchableOpacity>
+            <View style={styles.actions}>
+              <TouchableOpacity onPress={() => onEditExperience(item)} style={styles.iconButton}>
+                <Ionicons name="create-outline" size={18} color="#4B5563" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => onDeleteExperience(item.id)} style={styles.iconButton}>
+                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+              </TouchableOpacity>
             </View>
           </View>
-        </TouchableOpacity>
-      )}
-      contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
-    />
+        )}
+      />
+
+      {/* 필터 모달 */}
+      <Modal visible={showFilterModal} animationType="slide" transparent>
+        <View style={styles.modalBackground}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>필터 설정</Text>
+
+            <Text style={styles.label}>정렬 기준</Text>
+            <DropDownPicker
+              open={sortOpen}
+              setOpen={setSortOpen}
+              value={sortOption}
+              setValue={setSortOption}
+              items={sortOptions.map((s) => ({ label: s, value: s }))}
+              style={styles.dropdown}
+              zIndex={1000}
+            />
+
+            <Text style={styles.label}>감정 필터</Text>
+            <DropDownPicker
+              open={emotionOpen}
+              setOpen={setEmotionOpen}
+              value={emotionFilter}
+              setValue={setEmotionFilter}
+              items={[
+                { label: "전체", value: "전체" },
+                ...Object.entries(emotionLabels).map(([_, v]) => ({ label: v, value: v })),
+              ]}
+              style={styles.dropdown}
+              zIndex={900}
+            />
+
+            <TouchableOpacity onPress={() => setShowFilterModal(false)} style={styles.closeButton}>
+              <Text style={styles.closeText}>닫기</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: "#fff" },
-  input: {
-    borderColor: "#ccc",
-    borderWidth: 1,
-    borderRadius: 6,
-    padding: 10,
-    marginBottom: 8,
-    fontSize: 15,
-    backgroundColor: "#fafaff",
-  },
-  locationRow: {
+  header: {
     flexDirection: "row",
-    marginBottom: 10,
-    minHeight: 40,
-  },
-  chip: {
-    marginRight: 6,
-    backgroundColor: "#e9e5fa",
-    color: "#333",
-  },
-  chipSelected: {
-    marginRight: 6,
-    backgroundColor: "#a78bfa",
-    color: "#fff",
-  },
-  countText: {
-    marginBottom: 8,
-    fontWeight: "bold",
-    color: "#5b21b6",
-    fontSize: 14,
-  },
-  expCard: {
-    padding: 14,
-    backgroundColor: "#f4f9fd",
-    borderRadius: 10,
-    marginBottom: 12,
-    elevation: 2,
-  },
-  expRow: {
-    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 12,
   },
-  expEmoji: {
-    fontSize: 22,
-    marginRight: 12,
+  title: { fontSize: 20, fontWeight: "bold" },
+  subtitle: { fontSize: 13, color: "#6B7280" },
+  filterButton: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: "#F9FAFB",
   },
-  expInfo: {
-    flex: 1,
-    minWidth: 0,
+  filterButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#111827",
   },
-  expTitle: {
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  card: {
+    backgroundColor: "#f1f5f9",
+    padding: 12,
+    marginBottom: 12,
+    borderRadius: 10,
+  },
+  cardTitle: {
     fontWeight: "bold",
     fontSize: 16,
-    color: "#1e293b",
+    marginBottom: 4,
   },
-  expDesc: {
-    color: "#444",
-    marginTop: 3,
-    fontSize: 13,
-  },
-  expMeta: {
-    marginTop: 2,
-    color: "#7c3aed",
+  meta: {
     fontSize: 12,
+    color: "#6b7280",
+    marginBottom: 6,
   },
-  expActions: {
-    alignItems: "flex-end",
-    marginLeft: 7,
+  desc: {
+    fontSize: 14,
+    marginBottom: 4,
   },
-  expScore: {
+  trend: {
     fontWeight: "bold",
-    color: "#9333ea",
-    fontSize: 15,
+    color: "#7c3aed",
   },
-  actionButtons: {
+  actions: {
     flexDirection: "row",
+    justifyContent: "flex-end",
     marginTop: 8,
-    gap: 4,
   },
-  actionButton: {
-    backgroundColor: "#7C3AED",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+  iconButton: {
+    marginLeft: 12,
   },
-  deleteButton: {
-    backgroundColor: "#EF4444",
+  modalBackground: {
+    flex: 1,
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+    padding: 20,
   },
-  actionButtonText: {
-    color: "white",
-    fontSize: 12,
-    fontWeight: "500",
+  modalContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
   },
-  deleteButtonText: {
-    color: "white",
-  },
-  emptyText: {
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 16,
     textAlign: "center",
-    color: "#C42D7D",
-    marginTop: 30,
-    fontSize: 15,
+  },
+  dropdown: {
+    borderColor: "#D1D5DB",
+    borderWidth: 1,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  label: {
+    fontSize: 12,
+    color: "#4B5563",
+    marginBottom: 6,
+  },
+  closeButton: {
+    marginTop: 12,
+    backgroundColor: "#7C3AED",
+    padding: 10,
+    borderRadius: 8,
+  },
+  closeText: {
+    textAlign: "center",
+    color: "white",
+    fontWeight: "600",
   },
 });

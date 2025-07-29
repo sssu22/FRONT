@@ -571,8 +571,8 @@ export default function TrendLogApp() {
         <View style={styles.tabContainer}>
           {[
             { id: "home", iconName: "home-outline", activeIconName: "home", label: "홈" },
-            { id: "posts", iconName: "book-outline", activeIconName: "book", label: "내 게시글" },
             { id: "trends", iconName: "trending-up-outline", activeIconName: "trending-up", label: "트렌드" },
+            { id: "posts", iconName: "book-outline", activeIconName: "book", label: "내 게시글" },
             { id: "profile", iconName: "person-outline", activeIconName: "person", label: "프로필" },
           ].map(({ id, iconName, activeIconName, label }) => (
             <TouchableOpacity

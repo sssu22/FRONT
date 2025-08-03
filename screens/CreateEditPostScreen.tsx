@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,20 +7,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
+  ActivityIndicator,
 } from "react-native";
-import { Button, Chip, Card, Provider } from "react-native-paper";
+import { Button, Chip, Card, Provider, IconButton } from "react-native-paper";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
-import TrendSelector from "./TrendSelector";
-import { dummyTrendDetails } from "../screens/data/dummyTrends";
-
-interface Trend {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  popularity: number;
-  createdAt: string;
-}
+import TrendSelector, { Trend } from "./TrendSelector";
+import districtCoordinates from "../constants/districtCoordinates";
+import { trendsApi } from "../utils/apiUtils";
 
 export type EmotionType =
   | "joy"
@@ -34,88 +27,201 @@ export type EmotionType =
   | "anger"
   | "embarrassment";
 
-export const emotionItems = [
-  { label: "😊 기쁨", value: "joy" },
-  { label: "🔥 흥분", value: "excitement" },
-  { label: "💭 향수", value: "nostalgia" },
-  { label: "😲 놀라움", value: "surprise" },
-  { label: "💖 사랑", value: "love" },
-  { label: "😞 아쉬움", value: "regret" },
-  { label: "😢 슬픔", value: "sadness" },
-  { label: "😒 짜증", value: "irritation" },
-  { label: "😡 화남", value: "anger" },
-  { label: "😳 당황", value: "embarrassment" },
-];
-
-interface ExperienceFormProps {
-  onSubmit: (experience: {
-    title: string;
-    date: string;
-    location: string;
-    emotion: EmotionType;
-    tags: string[];
-    description: string;
-    trend: Trend;
-  }) => void;
-  onClose: () => void;
-  initialData?: {
-    title: string;
-    date: string;
-    location: string;
-    emotion: EmotionType;
-    tags: string[];
-    description: string;
-    trend?: Trend | null;
-  } | null;
+export interface SubmitPayload {
+  title: string;
+  experienceDate: string;  // ✅ 서버 스펙에 맞게 수정
+  location: string;
+  emotion: string;         // ✅ 대문자로 변환될 예정
+  tags: string[];
+  description: string;
+  trendId: number;
+  latitude: number;
+  longitude: number;
 }
 
-export default function ExperienceForm({ onSubmit, onClose, initialData }: ExperienceFormProps) {
+export interface InitialData {
+  id: number;
+  title: string;
+  date: string;
+  location: string;
+  emotion: EmotionType;
+  tags: string[];
+  description: string;
+  trendId: number;
+  latitude: number;
+  longitude: number;
+}
+
+// ✅ 서버가 요구하는 감정 값으로 매핑
+const emotionItems = [
+  { label: "😊 기쁨", value: "joy", serverValue: "JOY" },
+  { label: "🔥 흥분", value: "excitement", serverValue: "EXCITEMENT" },
+  { label: "💭 향수", value: "nostalgia", serverValue: "NOSTALGIA" },
+  { label: "😲 놀라움", value: "surprise", serverValue: "SURPRISE" },
+  { label: "💖 사랑", value: "love", serverValue: "LOVE" },
+  { label: "😞 아쉬움", value: "regret", serverValue: "REGRET" },
+  { label: "😢 슬픔", value: "sadness", serverValue: "SADNESS" },
+  { label: "😒 짜증", value: "irritation", serverValue: "IRRITATION" },
+  { label: "😡 화남", value: "anger", serverValue: "ANGER" },
+  { label: "😳 당황", value: "embarrassment", serverValue: "EMBARRASSMENT" },
+];
+
+interface Props {
+  onSubmit: (payload: SubmitPayload) => void | Promise<void>;
+  onClose: () => void;
+  initialData?: InitialData | null;
+}
+
+export default function CreateEditPostScreen({
+  onSubmit,
+  onClose,
+  initialData = null,
+}: Props) {
   const [formData, setFormData] = useState({
     title: initialData?.title || "",
     date: initialData?.date || new Date().toISOString().split("T")[0],
     location: initialData?.location || "",
-    emotion: (initialData?.emotion as EmotionType) || "joy",
+    emotion: initialData?.emotion || ("joy" as EmotionType),
     description: initialData?.description || "",
   });
   const [tags, setTags] = useState<string[]>(initialData?.tags || []);
   const [currentTag, setCurrentTag] = useState("");
-  const [selectedTrend, setSelectedTrend] = useState<Trend | null>(initialData?.trend || null);
+  const [selectedTrend, setSelectedTrend] = useState<Trend | null>(
+    initialData
+      ? {
+          id: initialData.trendId,
+          name: "",
+          description: "",
+          category: "",
+          popularity: 0,
+          createdAt: "",
+        }
+      : null
+  );
   const [showTrendSelector, setShowTrendSelector] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [trends, setTrends] = useState<Trend[]>([]);
+  const [loadingTrends, setLoadingTrends] = useState(false);
+  const [trendsError, setTrendsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchTrends = async () => {
+      setLoadingTrends(true);
+      setTrendsError(null);
+      try {
+        const list = await trendsApi.getAll();
+        setTrends(list);
+
+        if (initialData) {
+          const found = list.find((t) => t.id === initialData.trendId);
+          if (found) setSelectedTrend(found);
+          else
+            setSelectedTrend({
+              id: initialData.trendId,
+              name: `트렌드 #${initialData.trendId}`,
+              description: "",
+              category: "",
+              popularity: 0,
+              createdAt: "",
+            });
+        }
+
+        if (list.length === 0) {
+          setTrendsError("사용 가능한 트렌드가 없습니다. Swagger에서 생성해주세요.");
+        }
+      } catch {
+        setTrendsError("트렌드를 불러올 수 없습니다.");
+      } finally {
+        setLoadingTrends(false);
+      }
+    };
+    fetchTrends();
+  }, [initialData]);
 
   const handleAddTag = () => {
-    if (currentTag.trim() && !tags.includes(currentTag.trim())) {
-      setTags([...tags, currentTag.trim()]);
+    const t = currentTag.trim();
+    if (t && !tags.includes(t)) {
+      setTags((prev) => [...prev, t]);
       setCurrentTag("");
     }
   };
   const handleRemoveTag = (tag: string) => {
-    setTags(tags.filter(t => t !== tag));
+    setTags((prev) => prev.filter((t) => t !== tag));
   };
+
   const handleConfirmDate = (date: Date) => {
-    const formatted = date.toISOString().split("T")[0];
-    setFormData({ ...formData, date: formatted });
+    const d = date.toISOString().split("T")[0];
+    setFormData((prev) => ({ ...prev, date: d }));
     setShowDatePicker(false);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (
       !formData.title.trim() ||
       !formData.date.trim() ||
       !formData.location.trim() ||
-      !formData.emotion ||
       !selectedTrend
     ) {
-      setError("필수 입력값을 모두 입력해주세요.");
+      setError("필수 입력값(*)을 모두 입력해주세요.");
       return;
     }
     setError(null);
-    onSubmit({
-      ...formData,
-      tags,
-      trend: selectedTrend,
-    });
+    setIsSubmitting(true);
+
+    try {
+      const coords = districtCoordinates[formData.location] || { lat: 0, lng: 0 };
+      
+      // ✅ 서버 감정 값 찾기
+      const emotionItem = emotionItems.find(item => item.value === formData.emotion);
+      const serverEmotion = emotionItem?.serverValue || "JOY"; // 기본값 설정
+      
+      // ✅ 서버 스펙에 맞는 페이로드 구성
+      const payload: SubmitPayload = {
+        title: formData.title.trim(),
+        experienceDate: formData.date, // ✅ experienceDate로 변경
+        location: formData.location.trim(),
+        emotion: serverEmotion, // ✅ 대문자 감정값 사용
+        tags: tags.filter(tag => tag.trim() !== ""), // ✅ 빈 태그 제거
+        description: formData.description.trim(),
+        trendId: selectedTrend.id,
+        latitude: coords.lat,
+        longitude: coords.lng,
+      };
+      
+      // ✅ 전송 전 데이터 검증 로그
+      console.log("📤 전송할 페이로드:", JSON.stringify(payload, null, 2));
+      console.log("✅ 필수 필드 체크:");
+      console.log("  - title:", payload.title ? "✓" : "✗");
+      console.log("  - experienceDate:", payload.experienceDate ? "✓" : "✗");
+      console.log("  - location:", payload.location ? "✓" : "✗");
+      console.log("  - emotion:", payload.emotion ? "✓" : "✗");
+      console.log("  - trendId:", payload.trendId ? "✓" : "✗");
+      console.log("  - description:", payload.description ? "✓" : "✗");
+      
+      await onSubmit(payload);
+    } catch (error) {
+      console.error("❌ 폼 제출 오류:", error);
+      setError("게시글 저장에 실패했습니다. 다시 시도해주세요.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const retryLoadTrends = async () => {
+    setTrendsError(null);
+    setLoadingTrends(true);
+    try {
+      const list = await trendsApi.getAll();
+      setTrends(list);
+      if (list.length === 0) setTrendsError("사용 가능한 트렌드가 없습니다.");
+    } catch {
+      setTrendsError("트렌드를 불러올 수 없습니다.");
+    } finally {
+      setLoadingTrends(false);
+    }
   };
 
   return (
@@ -124,76 +230,93 @@ export default function ExperienceForm({ onSubmit, onClose, initialData }: Exper
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContainer}
-          showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           <Card style={styles.card}>
             <View style={styles.headerRow}>
-              <Text style={styles.title}>{initialData ? "게시글 수정하기" : "새로운 게시글 추가"}</Text>
-              <Button icon="close" onPress={onClose} compact style={{ marginLeft: 10 }}>닫기</Button>
+              <Text style={styles.title}>
+                {initialData ? "게시글 수정하기" : "새 게시글 작성"}
+              </Text>
+              <IconButton icon="close" onPress={onClose} />
             </View>
             {error && <Text style={styles.errorText}>{error}</Text>}
 
             <Text style={styles.label}>트렌드 *</Text>
-            {selectedTrend ? (
+            {loadingTrends ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="#8B5CF6" />
+                <Text style={styles.loadingText}>로딩 중...</Text>
+              </View>
+            ) : trendsError ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{trendsError}</Text>
+                <Button mode="text" compact onPress={retryLoadTrends}>
+                  다시 시도
+                </Button>
+              </View>
+            ) : selectedTrend ? (
               <View style={styles.selectedTrendBox}>
                 <Text style={styles.selectedTrendTitle}>{selectedTrend.name}</Text>
-                <Text style={styles.selectedTrendDesc}>{selectedTrend.description}</Text>
                 <Chip style={styles.chip}>{selectedTrend.category}</Chip>
-                <Button mode="text" compact onPress={() => setShowTrendSelector(true)}>변경</Button>
+                <Button
+                  mode="text"
+                  compact
+                  onPress={() => setShowTrendSelector(true)}
+                >
+                  변경
+                </Button>
               </View>
             ) : (
               <Button
                 mode="outlined"
-                icon="chevron-down"
-                style={{ marginBottom: 12 }}
+                compact
                 onPress={() => setShowTrendSelector(true)}
-              >트렌드를 선택하세요</Button>
+              >
+                트렌드를 선택하세요
+              </Button>
             )}
 
-            <Text style={styles.label}>경험 제목 *</Text>
+            <Text style={styles.label}>제목 *</Text>
             <TextInput
               style={styles.input}
               placeholder="제목을 입력하세요"
               value={formData.title}
-              onChangeText={v => setFormData({ ...formData, title: v })}
+              onChangeText={(v) => setFormData((f) => ({ ...f, title: v }))}
+              editable={!isSubmitting}
             />
 
             <Text style={styles.label}>날짜 *</Text>
             <TouchableOpacity onPress={() => setShowDatePicker(true)}>
-              <Text style={[styles.input, { paddingVertical: 12 }]}>{formData.date}</Text>
+              <Text style={[styles.input, { paddingVertical: 12 }]}>
+                {formData.date}
+              </Text>
             </TouchableOpacity>
             <DateTimePickerModal
               isVisible={showDatePicker}
               mode="date"
-              date={new Date(formData.date + 'T00:00:00')}
+              date={new Date(formData.date + "T00:00:00")}
               onConfirm={handleConfirmDate}
               onCancel={() => setShowDatePicker(false)}
-              themeVariant="light"
             />
 
             <Text style={styles.label}>장소 *</Text>
             <TextInput
               style={styles.input}
-              placeholder="위치를 입력하세요"
+              placeholder="장소 입력 (예: 강남구)"
               value={formData.location}
-              onChangeText={v => setFormData({ ...formData, location: v })}
+              onChangeText={(v) => setFormData((f) => ({ ...f, location: v }))}
+              editable={!isSubmitting}
             />
 
             <Text style={styles.label}>감정 *</Text>
-            <ScrollView horizontal style={{ marginBottom: 10 }} showsHorizontalScrollIndicator={false}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
               {emotionItems.map((opt) => (
                 <Chip
                   key={opt.value}
-                  style={
-                    formData.emotion === opt.value
-                      ? [styles.chip, styles.chipSelected]
-                      : styles.chip
-                  }
+                  style={formData.emotion === opt.value ? [styles.chip, styles.chipSelected] : styles.chip}
                   selected={formData.emotion === opt.value}
-                  onPress={() =>
-                    setFormData({ ...formData, emotion: opt.value as EmotionType })
-                  }
+                  onPress={() => !isSubmitting && setFormData((f) => ({ ...f, emotion: opt.value as EmotionType }))}
+                  disabled={isSubmitting}
                 >
                   {opt.label}
                 </Chip>
@@ -209,41 +332,51 @@ export default function ExperienceForm({ onSubmit, onClose, initialData }: Exper
                 onChangeText={setCurrentTag}
                 onSubmitEditing={handleAddTag}
                 returnKeyType="done"
+                editable={!isSubmitting}
               />
-              <Button mode="contained" onPress={handleAddTag} compact style={{ marginLeft: 8, backgroundColor: "#ddd" }}>추가</Button>
+              <Button mode="contained" compact onPress={handleAddTag} disabled={isSubmitting}>
+                추가
+              </Button>
             </View>
             <View style={styles.tagsList}>
               {tags.map((tag) => (
-                <Chip
-                  key={tag}
-                  style={styles.tagChip}
-                  onClose={() => handleRemoveTag(tag)}
-                  closeIcon="close"
-                >
+                <Chip key={tag} style={styles.tagChip} onClose={() => handleRemoveTag(tag)}>
                   #{tag}
                 </Chip>
               ))}
             </View>
 
-            <Text style={styles.label}>상세 설명</Text>
+            <Text style={styles.label}>상세 설명 *</Text>
             <TextInput
-              style={[styles.input, { height: 90, textAlignVertical: "top" }]}
+              style={[styles.input, { height: 90 }]}
               multiline
               placeholder="상세 경험을 적어주세요"
               value={formData.description}
-              onChangeText={(v) => setFormData({ ...formData, description: v })}
+              onChangeText={(v) => setFormData((f) => ({ ...f, description: v }))}
+              editable={!isSubmitting}
             />
 
-            <Button mode="contained" onPress={handleSubmit} style={styles.saveBtn}>
-              {initialData ? "게시글 수정하기" : "게시글 저장하기"}
+            <Button
+              mode="contained"
+              onPress={handleSubmit}
+              style={[styles.saveBtn, isSubmitting && styles.saveBtnDisabled]}
+              disabled={isSubmitting}
+              loading={isSubmitting}
+            >
+              {isSubmitting
+                ? "저장 중..."
+                : initialData
+                ? "게시글 수정하기"
+                : "게시글 저장하기"}
             </Button>
           </Card>
 
           {showTrendSelector && (
             <TrendSelector
+              trends={trends}
               selectedTrend={selectedTrend}
-              onTrendSelect={(trend) => {
-                setSelectedTrend(trend);
+              onTrendSelect={(t) => {
+                setSelectedTrend(t);
                 setShowTrendSelector(false);
               }}
               onClose={() => setShowTrendSelector(false)}
@@ -258,20 +391,50 @@ export default function ExperienceForm({ onSubmit, onClose, initialData }: Exper
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#fafaff" },
   scrollView: { flex: 1 },
-  scrollContainer: { paddingBottom: 26 },
-  card: { margin: 18, borderRadius: 14, padding: 14, backgroundColor: "#fff", elevation: 3 },
-  headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
-  title: { fontSize: 18, fontWeight: "bold", flex: 1, color: "#8B5CF6" },
-  label: { fontWeight: "bold", marginBottom: 2, color: "#333", fontSize: 13 },
-  input: { backgroundColor: "#f2f2fb", borderRadius: 7, borderWidth: 1, borderColor: "#ece5fc", padding: 9, fontSize: 15, marginBottom: 9, color: "#191939" },
-  selectedTrendBox: { backgroundColor: "#f3f1ff", borderRadius: 7, padding: 12, marginBottom: 14 },
-  selectedTrendTitle: { fontSize: 15, fontWeight: "bold", color: "#6b21a8" },
-  selectedTrendDesc: { color: "#666", fontSize: 12, marginBottom: 3 },
-  chip: { marginRight: 8, marginBottom: 3, backgroundColor: "#f5f3ff" },
+  scrollContainer: { padding: 16, paddingBottom: 32 },
+  card: { borderRadius: 12, padding: 16, backgroundColor: "#fff", elevation: 3 },
+  headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
+  title: { flex: 1, fontSize: 18, fontWeight: "bold", color: "#8B5CF6" },
+  label: { fontSize: 14, fontWeight: "600", marginBottom: 4, color: "#333" },
+  input: {
+    backgroundColor: "#f2f2fb",
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: "#ece5fc",
+    padding: 9,
+    fontSize: 15,
+    marginBottom: 9,
+    color: "#191939",
+  },
+  chip: { marginRight: 8, marginBottom: 6, backgroundColor: "#f5f3ff" },
   chipSelected: { backgroundColor: "#a78bfa" },
-  tagRow: { flexDirection: "row", alignItems: "center", marginBottom: 7 },
-  tagChip: { marginRight: 6, backgroundColor: "#fef3c7", borderRadius: 5, marginBottom: 5 },
-  tagsList: { flexDirection: "row", flexWrap: "wrap", marginBottom: 4 },
-  saveBtn: { marginTop: 12, borderRadius: 7, backgroundColor: "#8B5CF6", shadowOpacity: 0 },
+  tagRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
+  tagsList: { flexDirection: "row", flexWrap: "wrap", marginBottom: 8 },
+  tagChip: { backgroundColor: "#fef3c7", marginRight: 6, marginBottom: 6 },
+  saveBtn: { marginTop: 16, borderRadius: 7, backgroundColor: "#8B5CF6" },
+  saveBtnDisabled: { backgroundColor: "#D1D5DB" },
   errorText: { color: "#D946EF", marginBottom: 8, fontSize: 13, textAlign: "center" },
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: "#f3f1ff",
+    borderRadius: 7,
+    marginBottom: 14,
+  },
+  loadingText: { marginLeft: 8, color: "#6b21a8", fontSize: 13 },
+  errorContainer: {
+    backgroundColor: "#fee2e2",
+    borderRadius: 7,
+    padding: 12,
+    marginBottom: 14,
+    alignItems: "center",
+  },
+  selectedTrendBox: {
+    backgroundColor: "#f3f1ff",
+    borderRadius: 7,
+    padding: 12,
+    marginBottom: 14,
+  },
+  selectedTrendTitle: { fontSize: 15, fontWeight: "bold", color: "#6b21a8" },
 });

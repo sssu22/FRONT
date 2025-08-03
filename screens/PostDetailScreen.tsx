@@ -1,22 +1,41 @@
-import React, { useState } from "react";
+// screens/PostDetailScreen.tsx - 완전한 버전
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
-  TextInput,
   TouchableOpacity,
-  FlatList,
+  ScrollView,
   Alert,
+  ActivityIndicator,
+  SafeAreaView,
 } from "react-native";
-import { Card, Chip, ProgressBar, Button, Badge, Avatar } from "react-native-paper";
-import Ionicons from "@expo/vector-icons/Ionicons";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { Ionicons } from "@expo/vector-icons";
+import { postsApi } from "../utils/apiUtils";
 
-// 감정 이모지 및 색 (10종)
-const emotionIcons = {
+interface PostDetailScreenProps {
+  postId: number;
+  onClose: () => void;
+}
+
+interface Experience {
+  id: number;
+  title: string;
+  description: string;
+  emotion: string;
+  location: string;
+  date: string;
+  tags: string[];
+  trendName?: string;
+  trendScore?: number;
+  latitude?: number;
+  longitude?: number;
+}
+
+// 감정 아이콘 매핑
+const emotionIcons: Record<string, string> = {
   joy: "😊",
-  excitement: "🔥",
+  excitement: "🔥", 
   nostalgia: "💭",
   surprise: "😲",
   love: "💖",
@@ -25,317 +44,415 @@ const emotionIcons = {
   irritation: "😒",
   anger: "😡",
   embarrassment: "😳",
-};
-const emotionColors = {
-  joy: "#FDE68A",
-  excitement: "#FCA5A5",
-  nostalgia: "#DDD6FE",
-  surprise: "#BAE6FD",
-  love: "#FBCFE8",
-  regret: "#F1F5F9",
-  sadness: "#DBEAFE",
-  irritation: "#FED7AA",
-  anger: "#FECACA",
-  embarrassment: "#E0E7FF",
+  JOY: "😊",
+  EXCITEMENT: "🔥",
+  NOSTALGIA: "💭", 
+  SURPRISE: "😲",
+  LOVE: "💖",
+  REGRET: "😞",
+  SADNESS: "😢",
+  IRRITATION: "😒",
+  ANGER: "😡",
+  EMBARRASSMENT: "😳",
 };
 
-// 경험 타입
-type Emotion =
-  | "joy"
-  | "excitement"
-  | "nostalgia"
-  | "surprise"
-  | "love"
-  | "regret"
-  | "sadness"
-  | "irritation"
-  | "anger"
-  | "embarrassment";
-interface Experience {
-  id: string;
-  title: string;
-  date: string;
-  location: string;
-  emotion: Emotion;
-  tags: string[];
-  description: string;
-  trendScore: number;
-}
+// 감정 라벨 매핑
+const emotionLabels: Record<string, string> = {
+  joy: "기쁨",
+  excitement: "흥분",
+  nostalgia: "향수", 
+  surprise: "놀라움",
+  love: "사랑",
+  regret: "아쉬움",
+  sadness: "슬픔",
+  irritation: "짜증",
+  anger: "화남",
+  embarrassment: "당황",
+  JOY: "기쁨",
+  EXCITEMENT: "흥분",
+  NOSTALGIA: "향수",
+  SURPRISE: "놀라움", 
+  LOVE: "사랑",
+  REGRET: "아쉬움",
+  SADNESS: "슬픔",
+  IRRITATION: "짜증",
+  ANGER: "화남",
+  EMBARRASSMENT: "당황",
+};
 
-interface ExperienceDetailProps {
-  experience: Experience;
-  allExperiences: Experience[];
-  onClose: () => void;
-  isBookmarked?: boolean;
-  onToggleBookmark?: () => void;
-  isLiked?: boolean;
-  onToggleLike?: () => void;
-}
-
-// 트렌드 데이터, 댓글 mock 생성 함수
-function generateTrendData(baseScore: number, date: string) {
-  return {
-    socialMediaMentions: Math.floor(baseScore * 1000 + Math.random() * 5000),
-    economicImpact: Math.floor(baseScore * 100000 + Math.random() * 500000),
-    userGrowth: Math.floor(baseScore * 10 + Math.random() * 50),
-    peakPeriod: `${new Date(date).getFullYear()}년 ${new Date(date).getMonth() + 1}월`,
-    marketSize: Math.floor(baseScore * 1000000 + Math.random() * 10000000),
-    views: Math.floor(Math.random() * 10000) + 1000,
-    likes: Math.floor(Math.random() * 500) + 50,
-    comments: Math.floor(Math.random() * 100) + 10,
-  };
-}
-const initialComments = [
-  {
-    id: "1",
-    user: "트렌드헌터",
-    avatar: "🌟",
-    content: "저도 비슷한 경험 있어요! 정말 신선한 충격이었죠",
-    time: "2시간 전",
-    likes: 12,
-  },
-  {
-    id: "2",
-    user: "경험수집가",
-    avatar: "🎯",
-    content: "이 트렌드 점수 정말 높네요. 당시 얼마나 핫했는지 알 수 있어요",
-    time: "5시간 전",
-    likes: 8,
-  },
-  {
-    id: "3",
-    user: "첫경험러",
-    avatar: "✨",
-    content: "저는 아직 안 해봤는데 꼭 해보고 싶어졌어요!",
-    time: "1일 전",
-    likes: 15,
-  },
-];
-
-export default function ExperienceDetail({
-  experience,
-  allExperiences,
+export default function PostDetailScreen({
+  postId,
   onClose,
-  isBookmarked = false,
-  onToggleBookmark,
-  isLiked = false,
-  onToggleLike,
-}: ExperienceDetailProps) {
-  const [newComment, setNewComment] = useState("");
-  const [comments, setComments] = useState(initialComments);
-  const [likedComments, setLikedComments] = useState<{ [id: string]: boolean }>({});
-  const trendData = generateTrendData(experience.trendScore, experience.date);
+}: PostDetailScreenProps) {
+  const [data, setData] = useState<Experience | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // 추천 경험
-  const relatedExperiences = allExperiences
-    .filter(
-      (exp) =>
-        exp.id !== experience.id &&
-        (exp.tags.some((tag) => experience.tags.includes(tag)) ||
-          exp.emotion === experience.emotion)
-    )
-    .slice(0, 3);
-
-  // 댓글 추가
-  const handleAddComment = () => {
-    if (!newComment.trim()) return;
-    setComments([
-      {
-        id: Date.now().toString(),
-        user: "나",
-        avatar: "👤",
-        content: newComment,
-        time: "방금 전",
-        likes: 0,
-      },
-      ...comments,
-    ]);
-    setNewComment("");
+  const fetchPost = async () => {
+    try {
+      setLoading(true);
+      console.log("📖 게시글 상세 조회:", postId);
+      const appData = await postsApi.getById(postId);
+      console.log("✅ 게시글 상세 데이터:", appData);
+      setData(appData);
+    } catch (error) {
+      console.error("❌ 게시글 상세 조회 실패:", error);
+      Alert.alert("에러", "게시글 정보를 불러오지 못했습니다.");
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // 공유
-  const handleShare = () => {
-    Alert.alert("링크 복사됨", "경험 상세 링크가 복사되었습니다!");
-  };
+  useEffect(() => {
+    if (postId) {
+      fetchPost();
+    } else {
+      setData(null);
+      setLoading(false);
+    }
+  }, [postId]);
 
-  // 댓글 좋아요
-  const handleLikeComment = (id: string) => {
-    setLikedComments((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <Ionicons name="close" size={24} color="#6B7280" />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#7C3AED" />
+          <Text style={styles.loadingText}>게시글을 불러오는 중...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!data) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <Ionicons name="close" size={24} color="#6B7280" />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.centered}>
+          <Ionicons name="alert-circle-outline" size={64} color="#EF4444" />
+          <Text style={styles.errorTitle}>게시글을 찾을 수 없습니다</Text>
+          <Text style={styles.errorSubtitle}>삭제되었거나 접근할 수 없는 게시글입니다</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const emotionIcon = emotionIcons[data.emotion] || "😊";
+  const emotionLabel = emotionLabels[data.emotion] || data.emotion;
 
   return (
-    <ScrollView style={styles.container}>
-      {/* 상단 네비 */}
-      <View style={styles.row}>
-        <Button onPress={onClose} compact mode="text" icon="arrow-left">
-          돌아가기
-        </Button>
-        <View style={{ flex: 1 }} />
-        {onToggleBookmark && (
-          <Button
-            onPress={onToggleBookmark}
-            icon={isBookmarked ? "bookmark" : "bookmark-outline"}
-            compact
-            mode={isBookmarked ? "contained" : "text"}
-            style={isBookmarked && { backgroundColor: "#fbe2c7" }}
-          >
-            스크랩
-          </Button>
-        )}
-        {onToggleLike && (
-          <Button
-            onPress={onToggleLike}
-            icon={isLiked ? "heart" : "heart-outline"}
-            compact
-            mode={isLiked ? "contained" : "text"}
-            style={isLiked && { backgroundColor: "#fbcfe8" }}
-          >
-            좋아요
-          </Button>
-        )}
-        <Button onPress={handleShare} icon="share-variant" compact mode="text">
-          공유
-        </Button>
+    <SafeAreaView style={styles.container}>
+      {/* 헤더 */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <Ionicons name="close" size={24} color="#6B7280" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>게시글 상세</Text>
+        <View style={styles.placeholder} />
       </View>
 
-      {/* 경험 헤더 */}
-      <Text style={styles.title}>{experience.title}</Text>
-      <View style={styles.infoRow}>
-        <Text style={styles.emotion}>
-          {emotionIcons[experience.emotion]} {experience.emotion}
-        </Text>
-        <Text style={styles.infoText}>• {experience.location}</Text>
-        <Text style={styles.infoText}>• {experience.date}</Text>
-      </View>
-      <View style={styles.tagsRow}>
-        {experience.tags.map((tag) => (
-          <Chip key={tag} style={styles.chip}>
-            #{tag}
-          </Chip>
-        ))}
-      </View>
-
-      {/* 내용 */}
-      <Card style={styles.descCard}>
-        <Card.Content>
-          <Text style={styles.desc}>{experience.description}</Text>
-        </Card.Content>
-      </Card>
-
-      {/* 트렌드 데이터 */}
-      <View style={styles.trendBox}>
-        <Text style={styles.sectionTitle}>트렌드 데이터</Text>
-        <View style={styles.statRow}>
-          <Text>인기도</Text>
-          <ProgressBar
-            progress={experience.trendScore / 100}
-            color={emotionColors[experience.emotion]}
-            style={styles.progressBar}
-          />
-          <Text style={styles.statVal}>{experience.trendScore}</Text>
-        </View>
-        <View style={styles.statsGroup}>
-          <Text>소셜 언급 {trendData.socialMediaMentions}회</Text>
-          <Text>경제 영향 {trendData.economicImpact}원</Text>
-          <Text>사용자 증가 {trendData.userGrowth}%</Text>
-        </View>
-        <Text style={{ fontSize: 13 }}>
-          최고점 {trendData.peakPeriod} (시장 규모 {trendData.marketSize}원)
-        </Text>
-        <Text style={styles.statEtc}>
-          조회수 {trendData.views} · 좋아요 {trendData.likes} · 댓글 {trendData.comments}
-        </Text>
-      </View>
-
-      {/* 댓글 */}
-      <Text style={styles.sectionTitle}>댓글</Text>
-      <View style={styles.commentInputRow}>
-        <TextInput
-          style={styles.commentInput}
-          placeholder="댓글을 입력하세요"
-          value={newComment}
-          onChangeText={setNewComment}
-        />
-        <Button onPress={handleAddComment} compact mode="contained" style={styles.sendBtn}>
-          등록
-        </Button>
-      </View>
-      <FlatList
-        data={comments}
-        keyExtractor={(c) => c.id}
-        renderItem={({ item }) => (
-          <View style={styles.commentItem}>
-            <Text style={styles.avatar}>{item.avatar}</Text>
-            <View style={styles.commentBody}>
-              <Text style={{ fontWeight: "bold" }}>{item.user}</Text>
-              <Text>{item.content}</Text>
-              <View style={styles.commentMeta}>
-                <Text style={{ fontSize: 12, color: "#AAA" }}>{item.time}</Text>
-                <TouchableOpacity
-                  onPress={() => handleLikeComment(item.id)}
-                  style={{ marginLeft: 10 }}
-                >
-                  <Text style={{ color: likedComments[item.id] ? "#d33" : "#666" }}>
-                    ♥ {item.likes + (likedComments[item.id] ? 1 : 0)}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <View style={styles.content}>
+          {/* 제목과 감정 */}
+          <View style={styles.titleSection}>
+            <Text style={styles.title}>{data.title}</Text>
+            <View style={styles.emotionBadge}>
+              <Text style={styles.emotionIcon}>{emotionIcon}</Text>
+              <Text style={styles.emotionText}>{emotionLabel}</Text>
             </View>
           </View>
-        )}
-        style={{ marginBottom: 16 }}
-        scrollEnabled={false}
-      />
 
-      {/* 유사 경험 */}
-      {relatedExperiences.length > 0 && (
-        <>
-          <Text style={styles.sectionTitle}>유사 경험</Text>
-          {relatedExperiences.map((exp) => (
-            <TouchableOpacity
-              key={exp.id}
-              style={styles.relatedCard}
-              onPress={() => {
-                onClose();
-                setTimeout(() => {
-                  // 부모에서 onExperienceClick(exp)를 직접 연결
-                }, 300);
-              }}
-            >
-              <Text style={{ fontWeight: "bold" }}>{exp.title}</Text>
-              <Text style={{ color: "#666" }}>{exp.description}</Text>
-            </TouchableOpacity>
-          ))}
-        </>
-      )}
-    </ScrollView>
+          {/* 메타 정보 */}
+          <View style={styles.metaSection}>
+            <View style={styles.metaRow}>
+              <Ionicons name="location-outline" size={16} color="#6B7280" />
+              <Text style={styles.metaText}>{data.location}</Text>
+            </View>
+            <View style={styles.metaRow}>
+              <Ionicons name="calendar-outline" size={16} color="#6B7280" />
+              <Text style={styles.metaText}>
+                {new Date(data.date).toLocaleDateString("ko-KR", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                  weekday: "short"
+                })}
+              </Text>
+            </View>
+            {data.trendScore && (
+              <View style={styles.metaRow}>
+                <Ionicons name="trending-up" size={16} color="#7C3AED" />
+                <Text style={[styles.metaText, { color: "#7C3AED", fontWeight: "600" }]}>
+                  트렌드 점수: {data.trendScore}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* 태그 */}
+          {data.tags && data.tags.length > 0 && (
+            <View style={styles.tagsSection}>
+              <Text style={styles.sectionTitle}>태그</Text>
+              <View style={styles.tagsContainer}>
+                {data.tags.map((tag, index) => (
+                  <View key={index} style={styles.tag}>
+                    <Text style={styles.tagText}>#{tag}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* 내용 */}
+          <View style={styles.descriptionSection}>
+            <Text style={styles.sectionTitle}>경험 내용</Text>
+            <View style={styles.descriptionBox}>
+              <Text style={styles.description}>{data.description}</Text>
+            </View>
+          </View>
+
+          {/* 트렌드 정보 */}
+          {data.trendName && (
+            <View style={styles.trendSection}>
+              <Text style={styles.sectionTitle}>관련 트렌드</Text>
+              <View style={styles.trendBox}>
+                <Ionicons name="trending-up-outline" size={20} color="#7C3AED" />
+                <Text style={styles.trendName}>{data.trendName}</Text>
+              </View>
+            </View>
+          )}
+
+          {/* 위치 정보 */}
+          {data.latitude && data.longitude && (
+            <View style={styles.locationSection}>
+              <Text style={styles.sectionTitle}>위치 정보</Text>
+              <View style={styles.coordinatesBox}>
+                <Text style={styles.coordinatesText}>
+                  위도: {data.latitude.toFixed(6)}
+                </Text>
+                <Text style={styles.coordinatesText}>
+                  경도: {data.longitude.toFixed(6)}
+                </Text>
+              </View>
+            </View>
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", padding: 14 },
-  row: { flexDirection: "row", alignItems: "center", marginBottom: 5 },
-  title: { fontSize: 22, fontWeight: "bold", marginBottom: 4, color: "#6D28D9" },
-  infoRow: { flexDirection: "row", alignItems: "center", marginBottom: 7 },
-  emotion: { marginRight: 7, fontSize: 15 },
-  infoText: { fontSize: 12, color: "#545" },
-  tagsRow: { flexDirection: "row", flexWrap: "wrap", marginBottom: 6, gap: 4 },
-  chip: { marginRight: 6, marginBottom: 4, backgroundColor: "#EFEFEF" },
-  descCard: { marginBottom: 13, backgroundColor: "#FAF5FF" },
-  desc: { fontSize: 16, color: "#333" },
-  trendBox: { padding: 13, borderRadius: 8, marginBottom: 13, backgroundColor: "#f0f1fa" },
-  sectionTitle: { fontWeight: "bold", fontSize: 17, marginTop: 8, marginBottom: 4 },
-  statRow: { flexDirection: "row", alignItems: "center", marginVertical: 2 },
-  progressBar: { flex: 1, height: 8, marginHorizontal: 8, borderRadius: 4, backgroundColor: "#eee" },
-  statVal: { width: 36, textAlign: "right" },
-  statsGroup: { flexDirection: "row", justifyContent: "space-between", marginBottom: 7 },
-  statEtc: { fontSize: 12, color: "#888", marginTop: 2 },
-  commentInputRow: { flexDirection: "row", alignItems: "center", marginBottom: 7 },
-  commentInput: { flex: 1, borderColor: "#ececec", borderWidth: 1, borderRadius: 4, padding: 8, backgroundColor: "#fafafa" },
-  sendBtn: { marginLeft: 8 },
-  commentItem: { flexDirection: "row", alignItems: "flex-start", marginBottom: 10 },
-  avatar: { fontSize: 18, marginRight: 9, marginTop: 2 },
-  commentBody: { marginLeft: 2, flex: 1 },
-  commentMeta: { flexDirection: "row", alignItems: "center", marginTop: 2 },
-  relatedCard: { backgroundColor: "#e0e7ff", padding: 10, borderRadius: 8, marginBottom: 8 },
+  container: {
+    flex: 1,
+    backgroundColor: "#FAFAFA",
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  closeButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "#F3F4F6",
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1F2937",
+  },
+  placeholder: {
+    width: 40,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    padding: 20,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 40,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#6B7280",
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginTop: 16,
+    textAlign: "center",
+  },
+  errorSubtitle: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginTop: 8,
+    textAlign: "center",
+  },
+  
+  // 제목 섹션
+  titleSection: {
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#1F2937",
+    lineHeight: 36,
+    marginBottom: 12,
+  },
+  emotionBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "#EEF2FF",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  emotionIcon: {
+    fontSize: 18,
+    marginRight: 6,
+  },
+  emotionText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6366F1",
+  },
+
+  // 메타 정보
+  metaSection: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  metaText: {
+    fontSize: 14,
+    color: "#4B5563",
+    marginLeft: 8,
+    fontWeight: "500",
+  },
+
+  // 섹션 제목
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginBottom: 12,
+  },
+
+  // 태그 섹션
+  tagsSection: {
+    marginBottom: 24,
+  },
+  tagsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  tag: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  tagText: {
+    fontSize: 13,
+    color: "#6366F1",
+    fontWeight: "500",
+  },
+
+  // 설명 섹션
+  descriptionSection: {
+    marginBottom: 24,
+  },
+  descriptionBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  description: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: "#374151",
+  },
+
+  // 트렌드 섹션
+  trendSection: {
+    marginBottom: 24,
+  },
+  trendBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    padding: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: "#7C3AED",
+  },
+  trendName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#7C3AED",
+    marginLeft: 8,
+  },
+
+  // 위치 섹션
+  locationSection: {
+    marginBottom: 24,
+  },
+  coordinatesBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  coordinatesText: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginBottom: 4,
+    fontFamily: "monospace",
+  },
 });

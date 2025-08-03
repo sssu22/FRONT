@@ -1,3 +1,4 @@
+// screens/auth/LoginForm.tsx - 실제 API 연동 버전
 import React, { useState } from "react";
 import {
   View,
@@ -14,7 +15,8 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 interface LoginFormProps {
-  onLogin: (user: { id: string; email: string; name: string; avatar?: string }) => void;
+  // ✅ 실제 credentials를 받도록 수정
+  onLogin: (credentials: { email: string; password: string }) => Promise<void>;
   onShowSignup: () => void;
   onBack: () => void;
 }
@@ -25,55 +27,53 @@ export default function LoginForm({ onLogin, onShowSignup, onBack }: LoginFormPr
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // ✅ 실제 서버 API 호출
   const handleSubmit = async () => {
     setIsLoading(true);
     setError("");
+    
     if (!formData.email || !formData.password) {
       setError("이메일과 비밀번호를 입력해주세요.");
       setIsLoading(false);
       return;
     }
-
+    
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      if (formData.email === "demo@TrendLog.com" && formData.password === "demo123") {
-        onLogin({
-          id: "demo-user",
-          email: formData.email,
-          name: "데모 사용자",
-          avatar: "",
-        });
-      } else {
-        onLogin({
-          id: Date.now().toString(),
-          email: formData.email,
-          name: formData.email.split("@")[0],
-          avatar: "",
-        });
-      }
-    } catch {
-      setError("로그인에 실패했습니다. 다시 시도해주세요.");
+      // 실제 서버 API 호출
+      await onLogin({
+        email: formData.email,
+        password: formData.password
+      });
+    } catch (error: any) {
+      console.error("로그인 실패:", error);
+      setError("로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGoogleLogin = async () => {
+  // ✅ 데모 계정으로 빠른 로그인
+  const handleDemoLogin = async () => {
+    setFormData({ email: "demo@trendlog.com", password: "demo123" });
     setIsLoading(true);
     setError("");
+    
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      onLogin({
-        id: "google-" + Date.now(),
-        email: "user@gmail.com",
-        name: "구글 사용자",
-        avatar: "https://lh3.googleusercontent.com/a/default-user=s96-c",
+      await onLogin({
+        email: "demo@trendlog.com",
+        password: "demo123"
       });
-    } catch {
-      setError("구글 로그인에 실패했습니다.");
+    } catch (error: any) {
+      console.error("데모 로그인 실패:", error);
+      setError("데모 로그인에 실패했습니다.");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // ✅ 구글 로그인 (나중에 구현 가능)
+  const handleGoogleLogin = async () => {
+    setError("구글 로그인은 아직 구현되지 않았습니다.");
   };
 
   return (
@@ -82,7 +82,6 @@ export default function LoginForm({ onLogin, onShowSignup, onBack }: LoginFormPr
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <View style={styles.card}>
-        {/* 상단 헤더 */}
         <View style={styles.headerRow}>
           <Button mode="text" onPress={onBack} compact style={{ marginRight: 4 }}>
             <Ionicons name="arrow-back" size={20} color="#8B5CF6" />
@@ -93,16 +92,13 @@ export default function LoginForm({ onLogin, onShowSignup, onBack }: LoginFormPr
         </View>
         <Text style={styles.subtitle}>계정에 로그인하세요</Text>
 
-        {/* 에러 메시지 */}
         {!!error && (
           <View style={styles.errorBox}>
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
 
-        {/* 폼 */}
         <View style={{ marginTop: 10 }}>
-          {/* 이메일 */}
           <Text style={styles.label}>이메일</Text>
           <View style={styles.inputRow}>
             <MaterialIcons name="mail-outline" size={20} color="#bbb" style={styles.inputIcon} />
@@ -118,7 +114,6 @@ export default function LoginForm({ onLogin, onShowSignup, onBack }: LoginFormPr
             />
           </View>
 
-          {/* 비밀번호 */}
           <Text style={[styles.label, { marginTop: 12 }]}>비밀번호</Text>
           <View style={styles.inputRow}>
             <MaterialIcons name="lock-outline" size={20} color="#bbb" style={styles.inputIcon} />
@@ -130,9 +125,10 @@ export default function LoginForm({ onLogin, onShowSignup, onBack }: LoginFormPr
               onChangeText={(v) => setFormData({ ...formData, password: v })}
               editable={!isLoading}
               returnKeyType="done"
+              onSubmitEditing={handleSubmit}
             />
             <TouchableOpacity
-              onPress={() => setShowPassword((prev) => !prev)}
+              onPress={() => setShowPassword((p) => !p)}
               style={styles.eyeBtn}
               disabled={isLoading}
             >
@@ -144,7 +140,6 @@ export default function LoginForm({ onLogin, onShowSignup, onBack }: LoginFormPr
             </TouchableOpacity>
           </View>
 
-          {/* 로그인 버튼 */}
           <Button
             mode="contained"
             onPress={handleSubmit}
@@ -152,22 +147,16 @@ export default function LoginForm({ onLogin, onShowSignup, onBack }: LoginFormPr
             disabled={isLoading}
             contentStyle={{ height: 45 }}
           >
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={{ color: "#fff", fontWeight: "bold" }}>로그인</Text>
-            )}
+            {isLoading ? <ActivityIndicator size="small" color="#fff" /> : "로그인"}
           </Button>
         </View>
 
-        {/* 구분선 */}
         <View style={styles.separatorRow}>
           <View style={styles.separatorLine} />
           <Text style={styles.separatorText}>또는</Text>
           <View style={styles.separatorLine} />
         </View>
 
-        {/* Google 로그인 */}
         <Button
           mode="outlined"
           onPress={handleGoogleLogin}
@@ -178,31 +167,32 @@ export default function LoginForm({ onLogin, onShowSignup, onBack }: LoginFormPr
             <Ionicons name="logo-google" size={18} color={color || "#EA4335"} />
           )}
         >
-          {isLoading ? (
-            <ActivityIndicator size="small" color="#4285F4" />
-          ) : (
-            <Text style={{ color: "#222" }}>Google로 로그인</Text>
-          )}
+          Google로 로그인
         </Button>
 
-        {/* 회원가입 링크 */}
         <View style={{ alignItems: "center", marginVertical: 15 }}>
           <Text style={{ color: "#666", fontSize: 13 }}>
             계정이 없으신가요?{" "}
-            <Text
-              style={{ color: "#8B5CF6", fontWeight: "bold" }}
-              onPress={onShowSignup}
-            >
+            <Text style={{ color: "#8B5CF6", fontWeight: "bold" }} onPress={onShowSignup}>
               회원가입
             </Text>
           </Text>
         </View>
 
-        {/* 데모 계정 안내 */}
+        {/* ✅ 데모 계정 섹션 개선 */}
         <View style={styles.demoBox}>
-          <Text style={styles.demoLabel}>데모 계정</Text>
-          <Text style={styles.demoHint}>이메일: demo@TrendLog.com</Text>
+          <Text style={styles.demoLabel}>데모 계정으로 체험하기</Text>
+          <Text style={styles.demoHint}>이메일: demo@trendlog.com</Text>
           <Text style={styles.demoHint}>비밀번호: demo123</Text>
+          <TouchableOpacity
+            onPress={handleDemoLogin}
+            style={styles.demoButton}
+            disabled={isLoading}
+          >
+            <Text style={styles.demoButtonText}>
+              {isLoading ? "로그인 중..." : "데모 계정으로 로그인"}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -217,9 +207,6 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 380,
     padding: 22,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
     elevation: 8,
   },
   headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
@@ -231,7 +218,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 14,
     borderRadius: 8,
-    overflow: "hidden",
   },
   subtitle: { textAlign: "center", color: "#666", fontSize: 15, marginBottom: 8 },
   errorBox: {
@@ -254,7 +240,7 @@ const styles = StyleSheet.create({
     borderColor: "#eee",
     borderWidth: 1,
     paddingHorizontal: 12,
-    color: "#222"
+    color: "#222",
   },
   inputIcon: { position: "absolute", left: 10, zIndex: 10 },
   eyeBtn: { position: "absolute", right: 8, zIndex: 10, padding: 5 },
@@ -262,7 +248,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
     borderRadius: 8,
     backgroundColor: "#8B5CF6",
-    shadowOpacity: 0,
   },
   separatorRow: { flexDirection: "row", alignItems: "center", marginVertical: 16 },
   separatorLine: { flex: 1, height: 1, backgroundColor: "#eee" },
@@ -270,9 +255,35 @@ const styles = StyleSheet.create({
   googleBtn: {
     borderColor: "#bbb",
     backgroundColor: "#F3F3F8",
-    marginTop: 0,
   },
-  demoBox: { marginTop: 8, backgroundColor: "#e6e6ff", borderRadius: 7, padding: 10, alignItems: "center" },
-  demoLabel: { color: "#3A2C91", fontWeight: "bold", marginBottom: 3, fontSize: 12 },
-  demoHint: { color: "#7b75c0", fontSize: 12, marginBottom: 1 },
+  demoBox: { 
+    marginTop: 8, 
+    backgroundColor: "#e6e6ff", 
+    borderRadius: 7, 
+    padding: 12, 
+    alignItems: "center" 
+  },
+  demoLabel: { 
+    color: "#3A2C91", 
+    fontWeight: "bold", 
+    marginBottom: 6, 
+    fontSize: 13 
+  },
+  demoHint: { 
+    color: "#7b75c0", 
+    fontSize: 11, 
+    marginBottom: 2 
+  },
+  demoButton: {
+    backgroundColor: "#8B5CF6",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginTop: 8,
+  },
+  demoButtonText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
 });

@@ -23,7 +23,7 @@ const emotionIcons = {
 };
 
 interface Experience {
-  id: string;
+  id: number;
   title: string;
   date: string;
   location: string;
@@ -81,7 +81,7 @@ export default function HomeTab({
   return (
     <FlatList
       data={experiences}
-      keyExtractor={(item) => item.id}
+       keyExtractor={(item) => item.id.toString()}
       renderItem={({ item }) => (
         <TouchableOpacity onPress={() => onExperienceClick(item)}>
           <Card style={styles.expCard}>

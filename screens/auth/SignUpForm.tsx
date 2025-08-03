@@ -1,3 +1,4 @@
+// screens/auth/SignUpForm.tsx - 실제 API 연동 버전
 import React, { useState } from "react";
 import {
   View,
@@ -16,7 +17,8 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 interface SignupFormProps {
-  onSignup: (user: { id: string; email: string; name: string; avatar?: string }) => void;
+  // ✅ 실제 credentials를 받도록 수정
+  onSignup: (userData: { email: string; password: string; name: string }) => Promise<void>;
   onShowLogin: () => void;
   onBack: () => void;
 }
@@ -34,10 +36,12 @@ export default function SignupForm({ onSignup, onShowLogin, onBack }: SignupForm
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // ✅ 실제 서버 API 호출
   const handleSubmit = async () => {
     setIsLoading(true);
     setError("");
 
+    // 유효성 검사
     if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
       setError("모든 필드를 입력해주세요.");
       setIsLoading(false);
@@ -62,37 +66,32 @@ export default function SignupForm({ onSignup, onShowLogin, onBack }: SignupForm
       return;
     }
 
+    // 이메일 형식 검사
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError("올바른 이메일 형식이 아닙니다.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      onSignup({
-        id: Date.now().toString(),
+      // 실제 서버 API 호출
+      await onSignup({
         email: formData.email,
+        password: formData.password,
         name: formData.name,
-        avatar: "",
       });
-    } catch {
+    } catch (error: any) {
+      console.error("회원가입 실패:", error);
       setError("회원가입에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setIsLoading(false);
     }
   };
 
+  // ✅ 구글 회원가입 (나중에 구현 가능)
   const handleGoogleSignup = async () => {
-    setIsLoading(true);
-    setError("");
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      onSignup({
-        id: "google-" + Date.now(),
-        email: "newuser@gmail.com",
-        name: "새로운 구글 사용자",
-        avatar: "https://lh3.googleusercontent.com/a/default-user=s96-c",
-      });
-    } catch {
-      setError("구글 회원가입에 실패했습니다.");
-    } finally {
-      setIsLoading(false);
-    }
+    setError("구글 회원가입은 아직 구현되지 않았습니다.");
   };
 
   return (
@@ -193,6 +192,7 @@ export default function SignupForm({ onSignup, onShowLogin, onBack }: SignupForm
                 onChangeText={(v) => setFormData({ ...formData, confirmPassword: v })}
                 editable={!isLoading}
                 returnKeyType="done"
+                onSubmitEditing={handleSubmit}
               />
               <TouchableOpacity
                 onPress={() => setShowConfirmPassword((prev) => !prev)}
@@ -251,11 +251,7 @@ export default function SignupForm({ onSignup, onShowLogin, onBack }: SignupForm
               contentStyle={{ height: 44 }}
               icon={({ color }) => <Ionicons name="logo-google" size={18} color={color || "#EA4335"} />}
             >
-              {isLoading ? (
-                <ActivityIndicator size="small" color="#4285F4" />
-              ) : (
-                <Text style={{ color: "#222" }}>Google로 회원가입</Text>
-              )}
+              Google로 회원가입
             </Button>
 
             {/* 로그인 링크 */}
@@ -266,6 +262,26 @@ export default function SignupForm({ onSignup, onShowLogin, onBack }: SignupForm
                   로그인
                 </Text>
               </Text>
+            </View>
+
+            {/* ✅ 개발자를 위한 빠른 테스트 */}
+            <View style={styles.devBox}>
+              <Text style={styles.devLabel}>개발자 테스트</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setFormData({
+                    name: "테스트 사용자",
+                    email: "test@example.com",
+                    password: "test123",
+                    confirmPassword: "test123",
+                  });
+                  setAgreeTerms(true);
+                }}
+                style={styles.devButton}
+                disabled={isLoading}
+              >
+                <Text style={styles.devButtonText}>테스트 데이터 자동 입력</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
@@ -350,5 +366,29 @@ const styles = StyleSheet.create({
   googleBtn: {
     borderColor: "#bbb",
     backgroundColor: "#F3F3F8",
+  },
+  devBox: {
+    marginTop: 12,
+    backgroundColor: "#f0f9ff",
+    borderRadius: 7,
+    padding: 10,
+    alignItems: "center",
+  },
+  devLabel: {
+    color: "#0369a1",
+    fontWeight: "bold",
+    marginBottom: 6,
+    fontSize: 12,
+  },
+  devButton: {
+    backgroundColor: "#0ea5e9",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 5,
+  },
+  devButtonText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "500",
   },
 });

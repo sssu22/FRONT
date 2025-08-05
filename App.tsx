@@ -24,6 +24,9 @@ import ScrapScreen from "./screens/ScrapView"; // 세미콜론 제거하여 올�
 import WelcomeScreen from "./screens/auth/WelcomeScreen";
 import LoginForm from "./screens/auth/LoginForm";
 import SignUpForm from "./screens/auth/SignUpForm";
+import ResetPasswordForm from "./screens/auth/ResetPasswordForm";
+import ResetConfirmForm from "./screens/auth/ResetConfirmForm";
+
 
 interface Experience {
   id: string;
@@ -164,7 +167,7 @@ const mockExperiences: Experience[] = [
 ];
 
 type TabType = "home" | "posts" | "trends" | "profile";
-type AuthScreen = "welcome" | "login" | "signup";
+type AuthScreen = "welcome" | "login" | "signup" | "reset" | "confirm";
 
 export default function TrendLogApp() {
   const [user, setUser] = useState<UserType | null>(null);
@@ -224,7 +227,7 @@ export default function TrendLogApp() {
     }
   };
 
-  // 스크랩 데이터 저장 
+  // 스크랩 데이터 저장
   useEffect(() => {
     if (scrappedExperiences.length > 0 || scrappedExperiences.length === 0) {
       saveScrappedExperiences();
@@ -435,6 +438,7 @@ export default function TrendLogApp() {
             onLogin={handleLogin}
             onShowSignup={() => setAuthScreen("signup")}
             onBack={() => setAuthScreen("welcome")}
+            onShowResetPassword={() => setAuthScreen("reset")}
           />
         );
       case "signup":
@@ -445,6 +449,22 @@ export default function TrendLogApp() {
             onBack={() => setAuthScreen("welcome")}
           />
         );
+
+      case "reset":
+        return (
+            <ResetPasswordForm
+                onBack={() => setAuthScreen("login")} // 뒤로가기 시 로그인 화면으로 이동
+            />
+        );
+
+      case "confirm":
+        return (
+            <ResetConfirmForm
+                onBack={() => setAuthScreen("reset")}
+                onComplete={() => setAuthScreen("login")}
+            />
+        );
+
       default:
         return <WelcomeScreen onShowLogin={() => setAuthScreen("login")} onShowSignup={() => setAuthScreen("signup")} />;
     }
@@ -526,7 +546,7 @@ export default function TrendLogApp() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      
+
       {/* App Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
@@ -571,8 +591,8 @@ export default function TrendLogApp() {
         <View style={styles.tabContainer}>
           {[
             { id: "home", iconName: "home-outline", activeIconName: "home", label: "홈" },
-            { id: "posts", iconName: "book-outline", activeIconName: "book", label: "내 게시글" },
             { id: "trends", iconName: "trending-up-outline", activeIconName: "trending-up", label: "트렌드" },
+            { id: "posts", iconName: "book-outline", activeIconName: "book", label: "내 게시글" },
             { id: "profile", iconName: "person-outline", activeIconName: "person", label: "프로필" },
           ].map(({ id, iconName, activeIconName, label }) => (
             <TouchableOpacity

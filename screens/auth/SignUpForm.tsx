@@ -50,8 +50,8 @@ export default function SignupForm({ onSignup, onShowLogin, onBack }: SignupForm
       return;
     }
 
-    if (formData.password.length < 6) {
-      setError("비밀번호는 최소 6자 이상이어야 합니다.");
+    if (formData.password.length < 8) {
+      setError("비밀번호는 영문,숫자,특수기호 포함 8~20자이어야합니다");
       setIsLoading(false);
       return;
     }
@@ -101,9 +101,9 @@ export default function SignupForm({ onSignup, onShowLogin, onBack }: SignupForm
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <ScrollView 
+        <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollWrapper} 
+          contentContainerStyle={styles.scrollWrapper}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -160,8 +160,8 @@ export default function SignupForm({ onSignup, onShowLogin, onBack }: SignupForm
             <View style={styles.inputRow}>
               <MaterialIcons name="lock-outline" size={20} color="#bbb" style={styles.inputIcon} />
               <TextInput
-                style={[styles.input, { paddingLeft: 38, paddingRight: 38 }]}
-                placeholder="비밀번호 (최소 6자)"
+                style={[styles.input, { paddingLeft: 38, paddingRight: 38, fontSize: 13}]}
+                placeholder="비밀번호 (영문,숫자,특수기호 포함 8~20자)"
                 secureTextEntry={!showPassword}
                 value={formData.password}
                 onChangeText={(v) => setFormData({ ...formData, password: v })}
@@ -275,9 +275,9 @@ export default function SignupForm({ onSignup, onShowLogin, onBack }: SignupForm
 }
 
 const styles = StyleSheet.create({
-  root: { 
-    flex: 1, 
-    backgroundColor: "#F8F4FF" 
+  root: {
+    flex: 1,
+    backgroundColor: "#F8F4FF"
   },
   keyboardView: {
     flex: 1,
@@ -285,10 +285,10 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  scrollWrapper: { 
-    padding: 22, 
+  scrollWrapper: {
+    padding: 22,
     minHeight: '100%',
-    justifyContent: "center" 
+    justifyContent: "center"
   },
   card: {
     backgroundColor: "#fff",

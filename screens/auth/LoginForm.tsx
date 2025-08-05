@@ -17,9 +17,10 @@ interface LoginFormProps {
   onLogin: (user: { id: string; email: string; name: string; avatar?: string }) => void;
   onShowSignup: () => void;
   onBack: () => void;
+  onShowResetPassword: () => void;
 }
 
-export default function LoginForm({ onLogin, onShowSignup, onBack }: LoginFormProps) {
+export default function LoginForm({ onLogin, onShowSignup, onBack, onShowResetPassword }: LoginFormProps) {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -195,6 +196,16 @@ export default function LoginForm({ onLogin, onShowSignup, onBack }: LoginFormPr
             >
               회원가입
             </Text>
+          </Text>
+        </View>
+
+        {/* 비밀번호 재설정 링크 추가 */}
+        <View style={{ alignItems: "center", marginBottom: 15 }}>
+          <Text
+              style={{ color: "#8B5CF6", fontSize: 13, fontWeight: "bold" }}
+              onPress={onShowResetPassword}
+          >
+            비밀번호를 잊으셨나요?
           </Text>
         </View>
 

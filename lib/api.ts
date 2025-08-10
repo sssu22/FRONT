@@ -8,5 +8,5 @@ const api = axios.create({
   },
 });
 
-await AsyncStorage.setItem("authToken", response.data.token);
+//await AsyncStorage.setItem("authToken", response.data.token);
 export default api;

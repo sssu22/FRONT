@@ -1,31 +1,45 @@
 // utils/dataTransformers.ts
-import type { Experience } from "../App";
+
+// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 이 부분을 수정합니다 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+// import { Experience, EmotionType } from "../App"; // 기존 코드
+import { Experience } from "../App"; // Experience는 App.tsx에서 가져오고
+import { EmotionType } from "../screens/CreateEditPostScreen"; // EmotionType은 CreateEditPostScreen.tsx에서 가져옵니다.
+// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ 이 부분을 수정합니다 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+// 서버에서 온 데이터 타입을 정의합니다 (Swagger를 참고).
+interface ServerPost {
+  id: number;
+  title: string;
+  experienceDate: string; 
+  location: string;
+  summary: string; 
+  emotion: string;
+  trendTitle: string; 
+  trendScore: number;
+  trendId: number;
+  tags: string[];
+  latitude?: number;
+  longitude?: number;
+}
+
+// '번역' 함수
+const serverToApp = (post: ServerPost): Experience => {
+  return {
+    id: post.id,
+    title: post.title,
+    date: post.experienceDate,
+    location: post.location,
+    description: post.summary,
+    emotion: post.emotion.toLowerCase() as EmotionType,
+    trendName: post.trendTitle,
+    trendScore: post.trendScore,
+    trendId: post.trendId,
+    tags: post.tags,
+    latitude: post.latitude,
+    longitude: post.longitude,
+  };
+};
 
 export const dataTransformers = {
-  serverToApp: (item: any): Experience => ({
-    id: item.id ?? item.postId ?? 0,
-    title: item.title || "",
-    description: item.description || "",
-    emotion: item.emotion || "joy",
-    location: item.location || "",
-    date: item.experienceDate ?? item.date ?? item.createdAt ?? new Date().toISOString(),
-    tags: Array.isArray(item.tags) ? item.tags : [],
-    trendScore: item.score ?? item.trendScore ?? 0,
-    trendId: item.trendId || 0,
-    trendName: item.trendName ?? item.trendTitle ?? `트렌드 #${item.trendId}`,
-    latitude: item.latitude,
-    longitude: item.longitude,
-  }),
-  
-  appToServer: (experience: Experience) => ({
-    title: experience.title,
-    description: experience.description,
-    emotion: experience.emotion.toUpperCase(),
-    location: experience.location,
-    experienceDate: experience.date,
-    tags: experience.tags,
-    trendId: experience.trendId,
-    latitude: experience.latitude || 0,
-    longitude: experience.longitude || 0,
-  })
+  serverToApp,
 };

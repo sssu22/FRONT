@@ -1,4 +1,4 @@
-// screens/auth/LoginForm.tsx - 실제 API 연동 버전
+// screens/auth/LoginForm.tsx - 키보드 문제 해결 버전
 import React, { useState } from "react";
 import {
   View,
@@ -9,13 +9,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  TouchableWithoutFeedback,
+  Keyboard,
+  ScrollView,
 } from "react-native";
 import { Button } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 interface LoginFormProps {
-  // ✅ 실제 credentials를 받도록 수정
   onLogin: (credentials: { email: string; password: string }) => Promise<void>;
   onShowSignup: () => void;
   onBack: () => void;
@@ -27,8 +29,10 @@ export default function LoginForm({ onLogin, onShowSignup, onBack }: LoginFormPr
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // ✅ 실제 서버 API 호출
   const handleSubmit = async () => {
+    // 키보드 숨기기
+    Keyboard.dismiss();
+    
     setIsLoading(true);
     setError("");
     
@@ -39,12 +43,11 @@ export default function LoginForm({ onLogin, onShowSignup, onBack }: LoginFormPr
     }
     
     try {
-      // 실제 서버 API 호출
       await onLogin({
         email: formData.email,
         password: formData.password
       });
-    } catch (error: any) {
+    } catch (error: any) { 
       console.error("로그인 실패:", error);
       setError("로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.");
     } finally {
@@ -52,8 +55,8 @@ export default function LoginForm({ onLogin, onShowSignup, onBack }: LoginFormPr
     }
   };
 
-  // ✅ 데모 계정으로 빠른 로그인
   const handleDemoLogin = async () => {
+    Keyboard.dismiss();
     setFormData({ email: "demo@trendlog.com", password: "demo123" });
     setIsLoading(true);
     setError("");
@@ -71,155 +74,208 @@ export default function LoginForm({ onLogin, onShowSignup, onBack }: LoginFormPr
     }
   };
 
-  // ✅ 구글 로그인 (나중에 구현 가능)
   const handleGoogleLogin = async () => {
+    Keyboard.dismiss();
     setError("구글 로그인은 아직 구현되지 않았습니다.");
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.root}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <View style={styles.card}>
-        <View style={styles.headerRow}>
-          <Button mode="text" onPress={onBack} compact style={{ marginRight: 4 }}>
-            <Ionicons name="arrow-back" size={20} color="#8B5CF6" />
-          </Button>
-          <View style={{ flex: 1, alignItems: "center" }}>
-            <Text style={styles.title}>TrendLog</Text>
-          </View>
-        </View>
-        <Text style={styles.subtitle}>계정에 로그인하세요</Text>
-
-        {!!error && (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        )}
-
-        <View style={{ marginTop: 10 }}>
-          <Text style={styles.label}>이메일</Text>
-          <View style={styles.inputRow}>
-            <MaterialIcons name="mail-outline" size={20} color="#bbb" style={styles.inputIcon} />
-            <TextInput
-              style={[styles.input, { paddingLeft: 38 }]}
-              placeholder="your@email.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={formData.email}
-              onChangeText={(v) => setFormData({ ...formData, email: v })}
-              editable={!isLoading}
-              returnKeyType="next"
-            />
-          </View>
-
-          <Text style={[styles.label, { marginTop: 12 }]}>비밀번호</Text>
-          <View style={styles.inputRow}>
-            <MaterialIcons name="lock-outline" size={20} color="#bbb" style={styles.inputIcon} />
-            <TextInput
-              style={[styles.input, { paddingLeft: 38, paddingRight: 38 }]}
-              placeholder="비밀번호를 입력하세요"
-              secureTextEntry={!showPassword}
-              value={formData.password}
-              onChangeText={(v) => setFormData({ ...formData, password: v })}
-              editable={!isLoading}
-              returnKeyType="done"
-              onSubmitEditing={handleSubmit}
-            />
-            <TouchableOpacity
-              onPress={() => setShowPassword((p) => !p)}
-              style={styles.eyeBtn}
-              disabled={isLoading}
-            >
-              <MaterialIcons
-                name={showPassword ? "visibility-off" : "visibility"}
-                size={18}
-                color="#aaa"
-              />
-            </TouchableOpacity>
-          </View>
-
-          <Button
-            mode="contained"
-            onPress={handleSubmit}
-            style={styles.loginBtn}
-            disabled={isLoading}
-            contentStyle={{ height: 45 }}
-          >
-            {isLoading ? <ActivityIndicator size="small" color="#fff" /> : "로그인"}
-          </Button>
-        </View>
-
-        <View style={styles.separatorRow}>
-          <View style={styles.separatorLine} />
-          <Text style={styles.separatorText}>또는</Text>
-          <View style={styles.separatorLine} />
-        </View>
-
-        <Button
-          mode="outlined"
-          onPress={handleGoogleLogin}
-          disabled={isLoading}
-          style={styles.googleBtn}
-          contentStyle={{ height: 44 }}
-          icon={({ color }) => (
-            <Ionicons name="logo-google" size={18} color={color || "#EA4335"} />
-          )}
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <KeyboardAvoidingView
+        style={styles.root}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
         >
-          Google로 로그인
-        </Button>
+          <View style={styles.card}>
+            <View style={styles.headerRow}>
+              <TouchableOpacity onPress={onBack} style={styles.backButton}>
+                <Ionicons name="arrow-back" size={20} color="#8B5CF6" />
+              </TouchableOpacity>
+              <View style={{ flex: 1, alignItems: "center" }}>
+                <Text style={styles.title}>TrendLog</Text>
+              </View>
+              <View style={{ width: 32 }} />
+            </View>
+            <Text style={styles.subtitle}>계정에 로그인하세요</Text>
 
-        <View style={{ alignItems: "center", marginVertical: 15 }}>
-          <Text style={{ color: "#666", fontSize: 13 }}>
-            계정이 없으신가요?{" "}
-            <Text style={{ color: "#8B5CF6", fontWeight: "bold" }} onPress={onShowSignup}>
-              회원가입
-            </Text>
-          </Text>
-        </View>
+            {!!error && (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
 
-        {/* ✅ 데모 계정 섹션 개선 */}
-        <View style={styles.demoBox}>
-          <Text style={styles.demoLabel}>데모 계정으로 체험하기</Text>
-          <Text style={styles.demoHint}>이메일: demo@trendlog.com</Text>
-          <Text style={styles.demoHint}>비밀번호: demo123</Text>
-          <TouchableOpacity
-            onPress={handleDemoLogin}
-            style={styles.demoButton}
-            disabled={isLoading}
-          >
-            <Text style={styles.demoButtonText}>
-              {isLoading ? "로그인 중..." : "데모 계정으로 로그인"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </KeyboardAvoidingView>
+            <View style={{ marginTop: 10 }}>
+              <Text style={styles.label}>이메일</Text>
+              <View style={styles.inputContainer}>
+                <MaterialIcons name="mail-outline" size={20} color="#bbb" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="your@email.com"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  value={formData.email}
+                  onChangeText={(v) => setFormData({ ...formData, email: v })}
+                  editable={!isLoading}
+                  returnKeyType="next"
+                  blurOnSubmit={false}
+                  // 추가: 포커스 관련 속성
+                  autoFocus={false}
+                  selectTextOnFocus={true}
+                />
+              </View>
+
+              <Text style={[styles.label, { marginTop: 12 }]}>비밀번호</Text>
+              <View style={styles.inputContainer}>
+                <MaterialIcons name="lock-outline" size={20} color="#bbb" style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, { paddingRight: 45 }]}
+                  placeholder="비밀번호를 입력하세요"
+                  secureTextEntry={!showPassword}
+                  autoCorrect={false}
+                  value={formData.password}
+                  onChangeText={(v) => setFormData({ ...formData, password: v })}
+                  editable={!isLoading}
+                  returnKeyType="done"
+                  onSubmitEditing={handleSubmit}
+                  selectTextOnFocus={true}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword((p) => !p)}
+                  style={styles.eyeBtn}
+                  disabled={isLoading}
+                  activeOpacity={0.7}
+                >
+                  <MaterialIcons
+                    name={showPassword ? "visibility-off" : "visibility"}
+                    size={18}
+                    color="#aaa"
+                  />
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                onPress={handleSubmit}
+                style={[
+                  styles.loginBtn,
+                  { backgroundColor: isLoading ? "#ccc" : "#8B5CF6" }
+                ]}
+                disabled={isLoading}
+                activeOpacity={0.8}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.loginBtnText}>로그인</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.separatorRow}>
+              <View style={styles.separatorLine} />
+              <Text style={styles.separatorText}>또는</Text>
+              <View style={styles.separatorLine} />
+            </View>
+
+            <TouchableOpacity
+              onPress={handleGoogleLogin}
+              disabled={isLoading}
+              style={styles.googleBtn}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="logo-google" size={18} color="#EA4335" />
+              <Text style={styles.googleBtnText}>Google로 로그인</Text>
+            </TouchableOpacity>
+
+            <View style={{ alignItems: "center", marginVertical: 15 }}>
+              <Text style={{ color: "#666", fontSize: 13 }}>
+                계정이 없으신가요?{" "}
+                <Text 
+                  style={{ color: "#8B5CF6", fontWeight: "bold" }} 
+                  onPress={onShowSignup}
+                >
+                  회원가입
+                </Text>
+              </Text>
+            </View>
+
+            {/* 데모 계정 섹션 */}
+            <View style={styles.demoBox}>
+              <Text style={styles.demoLabel}>데모 계정으로 체험하기</Text>
+              <Text style={styles.demoHint}>이메일: demo@trendlog.com</Text>
+              <Text style={styles.demoHint}>비밀번호: demo123</Text>
+              <TouchableOpacity
+                onPress={handleDemoLogin}
+                style={[
+                  styles.demoButton,
+                  { backgroundColor: isLoading ? "#ccc" : "#8B5CF6" }
+                ]}
+                disabled={isLoading}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.demoButtonText}>
+                  {isLoading ? "로그인 중..." : "데모 계정으로 로그인"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </TouchableWithoutFeedback>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F8F4FF", justifyContent: "center", alignItems: "center" },
+  root: { 
+    flex: 1, 
+    backgroundColor: "#F8F4FF" 
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: "center",
+    padding: 22,
+  },
   card: {
     backgroundColor: "#fff",
     borderRadius: 18,
-    width: "100%",
-    maxWidth: 380,
     padding: 22,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 8,
   },
-  headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
+  headerRow: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    marginBottom: 10 
+  },
+  backButton: {
+    padding: 8,
+    borderRadius: 8,
+  },
   title: {
     fontSize: 24,
     fontWeight: "bold",
     backgroundColor: "#8B5CF6",
     color: "#fff",
-    paddingVertical: 4,
-    paddingHorizontal: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 16,
     borderRadius: 8,
+    overflow: "hidden",
   },
-  subtitle: { textAlign: "center", color: "#666", fontSize: 15, marginBottom: 8 },
+  subtitle: { 
+    textAlign: "center", 
+    color: "#666", 
+    fontSize: 15, 
+    marginBottom: 8 
+  },
   errorBox: {
     backgroundColor: "#fff1f1",
     borderColor: "#ef9f9f",
@@ -228,62 +284,118 @@ const styles = StyleSheet.create({
     padding: 8,
     marginVertical: 6,
   },
-  errorText: { color: "#C42D7D", fontSize: 13, textAlign: "center" },
-  label: { fontWeight: "bold", marginBottom: 2, color: "#222", marginLeft: 2, fontSize: 13 },
-  inputRow: { flexDirection: "row", alignItems: "center", marginBottom: 2 },
+  errorText: { 
+    color: "#C42D7D", 
+    fontSize: 13, 
+    textAlign: "center" 
+  },
+  label: { 
+    fontWeight: "bold", 
+    marginBottom: 6, 
+    color: "#222", 
+    marginLeft: 2, 
+    fontSize: 13 
+  },
+  inputContainer: { 
+    position: "relative",
+    marginBottom: 8,
+  },
   input: {
-    flex: 1,
-    height: 44,
-    fontSize: 15,
+    height: 48,
+    fontSize: 16,
     backgroundColor: "#F6F6F9",
     borderRadius: 8,
-    borderColor: "#eee",
+    borderColor: "#ddd",
     borderWidth: 1,
-    paddingHorizontal: 12,
+    paddingLeft: 45,
+    paddingRight: 16,
     color: "#222",
+    // 추가: 키보드 관련 스타일
+    textAlignVertical: "center",
   },
-  inputIcon: { position: "absolute", left: 10, zIndex: 10 },
-  eyeBtn: { position: "absolute", right: 8, zIndex: 10, padding: 5 },
+  inputIcon: { 
+    position: "absolute", 
+    left: 12, 
+    top: 14,
+    zIndex: 10 
+  },
+  eyeBtn: { 
+    position: "absolute", 
+    right: 12, 
+    top: 15,
+    zIndex: 10, 
+    padding: 4,
+  },
   loginBtn: {
-    marginTop: 16,
+    marginTop: 20,
     borderRadius: 8,
-    backgroundColor: "#8B5CF6",
+    height: 48,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  separatorRow: { flexDirection: "row", alignItems: "center", marginVertical: 16 },
-  separatorLine: { flex: 1, height: 1, backgroundColor: "#eee" },
-  separatorText: { marginHorizontal: 8, color: "#AAA", fontSize: 12 },
+  loginBtnText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  separatorRow: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    marginVertical: 20 
+  },
+  separatorLine: { 
+    flex: 1, 
+    height: 1, 
+    backgroundColor: "#eee" 
+  },
+  separatorText: { 
+    marginHorizontal: 12, 
+    color: "#AAA", 
+    fontSize: 12 
+  },
   googleBtn: {
-    borderColor: "#bbb",
-    backgroundColor: "#F3F3F8",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 48,
+    borderColor: "#ddd",
+    borderWidth: 1,
+    borderRadius: 8,
+    backgroundColor: "#F9F9F9",
+  },
+  googleBtnText: {
+    marginLeft: 8,
+    fontSize: 15,
+    color: "#333",
+    fontWeight: "500",
   },
   demoBox: { 
-    marginTop: 8, 
-    backgroundColor: "#e6e6ff", 
-    borderRadius: 7, 
-    padding: 12, 
+    marginTop: 16, 
+    backgroundColor: "#e8f2ff", 
+    borderRadius: 8, 
+    padding: 16, 
     alignItems: "center" 
   },
   demoLabel: { 
-    color: "#3A2C91", 
+    color: "#1e40af", 
     fontWeight: "bold", 
-    marginBottom: 6, 
-    fontSize: 13 
+    marginBottom: 8, 
+    fontSize: 14 
   },
   demoHint: { 
-    color: "#7b75c0", 
-    fontSize: 11, 
+    color: "#3b82f6", 
+    fontSize: 12, 
     marginBottom: 2 
   },
   demoButton: {
-    backgroundColor: "#8B5CF6",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderRadius: 6,
-    marginTop: 8,
+    marginTop: 10,
   },
   demoButtonText: {
     color: "#fff",
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "600",
   },
 });

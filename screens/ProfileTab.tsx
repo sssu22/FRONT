@@ -1,3 +1,4 @@
+// ProfileTab.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -6,9 +7,12 @@ import {
   TouchableOpacity,
   Modal,
   StyleSheet,
+  SafeAreaView,
 } from "react-native";
 import { Card, Button, IconButton } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import ProfileEdit from "./ProfileEdit";
+import TrendAnalysis from "./TrendAnalsis";
 
 type EmotionType =
     | "joy"
@@ -87,7 +91,6 @@ export default function ProfileTab({
       ? Math.round(totalTrendScore / experiences.length)
       : 0;
   const uniqueLocations = new Set(experiences.map((e) => e.location)).size;
-
   const totalViews = userActivity.views.length;
   const interestCategories = Object.entries(userActivity.categoryInterests)
       .sort(([, a], [, b]) => b - a)
@@ -108,7 +111,6 @@ export default function ProfileTab({
             <Text style={styles.username}>{user.name}</Text>
             <Text style={styles.email}>{user.email}</Text>
           </View>
-          {/* 설정 버튼 */}
           <IconButton
               icon={() => <Ionicons name="settings-outline" size={22} color="#7C3AED" />}
               onPress={() => setShowProfileEdit(true)}
@@ -116,7 +118,7 @@ export default function ProfileTab({
           />
         </View>
 
-        {/* 내 활동 요약 2x2 */}
+        {/* 활동 요약 */}
         <Text style={styles.sectionTitle}>내 활동 요약</Text>
         <View style={styles.grid}>
           <Card style={styles.statCard}>
@@ -137,7 +139,7 @@ export default function ProfileTab({
           </Card>
         </View>
 
-        {/* 개인 분석 요약 */}
+        {/* 분석 카드 */}
         <Card style={styles.analysisCard}>
           <Text style={styles.sectionTitle}>개인 분석 요약</Text>
           <View style={styles.analysisRow}>
@@ -188,11 +190,7 @@ export default function ProfileTab({
 
         {/* 하단 버튼 */}
         <View style={styles.buttonContainer}>
-          <Button
-              mode="outlined"
-              onPress={onShowScraps}
-              style={styles.actionButton}
-          >
+          <Button mode="outlined" onPress={onShowScraps} style={styles.actionButton}>
             스크랩 보기
           </Button>
           <Button
@@ -218,41 +216,33 @@ export default function ProfileTab({
         <Modal
             visible={showProfileEdit}
             onRequestClose={() => setShowProfileEdit(false)}
-            transparent
             animationType="slide"
         >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContainer}>
-              <Text style={styles.modalTitle}>프로필 편집</Text>
-              <Text style={styles.modalContent}>이 기능은 곧 제공됩니다.</Text>
-              <Button mode="contained" onPress={() => setShowProfileEdit(false)}>
-                닫기
-              </Button>
-            </View>
-          </View>
+          <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+            <ProfileEdit onClose={() => setShowProfileEdit(false)} />
+          </SafeAreaView>
         </Modal>
 
-        {/* 모달: 상세 분석 보고서 */}
+        {/* ✅ 상세 분석 보고서 모달 (첫 경험만 보여줌) */}
         <Modal
             visible={showAnalysisReport}
-            onRequestClose={() => setShowAnalysisReport(false)}
-            transparent
             animationType="slide"
+            onRequestClose={() => setShowAnalysisReport(false)}
         >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContainer}>
-              <Text style={styles.modalTitle}>개인 분석 보고서</Text>
-              <Text style={styles.modalContent}>
-                상세 분석 리포트는 추후 제공됩니다.
-              </Text>
+          <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+            <ScrollView contentContainerStyle={{ padding: 14 }}>
+              {experiences.length > 0 && (
+                  <TrendAnalysis experiences={[experiences[0]]} detailed />
+              )}
               <Button
                   mode="contained"
                   onPress={() => setShowAnalysisReport(false)}
+                  style={{ marginTop: 20 }}
               >
                 닫기
               </Button>
-            </View>
-          </View>
+            </ScrollView>
+          </SafeAreaView>
         </Modal>
       </ScrollView>
   );
@@ -278,9 +268,7 @@ const styles = StyleSheet.create({
   profileInfo: { flex: 1 },
   username: { fontSize: 20, fontWeight: "bold", marginBottom: 2, color: "#374151" },
   email: { fontSize: 14, color: "#6b7280" },
-
   sectionTitle: { fontWeight: "bold", fontSize: 18, marginBottom: 12, color: "#6b21a8" },
-
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -296,24 +284,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  statValue: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#7c3aed",
-    textAlign: "center",
-  },
-  statLabel: {
-    fontSize: 12,
-    color: "#6b7280",
-    marginTop: 6,
-    textAlign: "center",
-  },
-
+  statValue: { fontSize: 20, fontWeight: "bold", color: "#7c3aed", textAlign: "center" },
+  statLabel: { fontSize: 12, color: "#6b7280", marginTop: 6, textAlign: "center" },
   analysisCard: { borderRadius: 12, padding: 16, marginBottom: 16 },
   analysisRow: { flexDirection: "row", justifyContent: "space-between", marginVertical: 4 },
   analysisLabel: { fontSize: 14, color: "#374151" },
   analysisValue: { fontSize: 14, fontWeight: "bold", color: "#6b21a8" },
-
   recentCard: { borderRadius: 12, padding: 16, marginBottom: 16 },
   emptyText: { color: "#999", textAlign: "center", marginVertical: 12 },
   activityItem: {
@@ -327,36 +303,7 @@ const styles = StyleSheet.create({
   activityTitle: { fontWeight: "600", fontSize: 15, color: "#374151" },
   activityDate: { fontSize: 12, color: "#6b7280" },
   scoreText: { color: "#7c3aed", fontWeight: "600", fontSize: 13 },
-
   buttonContainer: { marginTop: 8 },
   actionButton: { marginBottom: 12 },
   logoutButton: { backgroundColor: "#dc2626" },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContainer: {
-    backgroundColor: "#fff",
-    padding: 24,
-    borderRadius: 16,
-    marginHorizontal: 30,
-    minWidth: 300,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 16,
-    color: "#374151",
-    textAlign: "center",
-  },
-  modalContent: {
-    fontSize: 14,
-    color: "#6b7280",
-    marginBottom: 20,
-    textAlign: "center",
-    lineHeight: 20,
-  },
 });

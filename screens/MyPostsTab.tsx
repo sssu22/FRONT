@@ -1,4 +1,4 @@
-// screens/MyPostsTab.tsx - UI 개선 버전
+// screens/MyPostsTab.tsx
 import React, {
   useState,
   useEffect,
@@ -21,58 +21,34 @@ import {
 } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
 import { WebView } from "react-native-webview";
-import { Ionicons } from "@expo/vector-icons";
-
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { postsApi } from "../utils/apiUtils";
+import { Experience, EmotionType, emotionLabels } from '../types'; 
 import districtCoordinates from "../constants/districtCoordinates";
 
 const screenHeight = Dimensions.get("window").height;
 
-// 정렬 옵션 정의
 const sortOptions = ["최신순", "트렌드순", "제목순"] as const;
 type SortOption = typeof sortOptions[number];
 
-// 감정 라벨 & 아이콘
-const emotionLabels = {
-  joy: "기쁜",
-  excitement: "흥분",
-  nostalgia: "향수",
-  surprise: "놀람",
-  love: "사랑",
-  regret: "아쉬움",
-  sadness: "슬픔",
-  irritation: "짜증",
-  anger: "화남",
-  embarrassment: "당황",
-} as const;
-type EmotionKey = keyof typeof emotionLabels;
-type EmotionLabel = typeof emotionLabels[EmotionKey];
-const emotionIcons: Record<EmotionKey, string> = {
-  joy: "😊",
-  excitement: "🔥",
-  nostalgia: "💭",
-  surprise: "😲",
-  love: "💖",
-  regret: "😞",
-  sadness: "😢",
-  irritation: "😒",
-  anger: "😡",
-  embarrassment: "😳",
+type EmotionLabel = typeof emotionLabels[EmotionType];
+
+const emotionIcons: Record<EmotionType, string> = {
+  joy: "😊", excitement: "🔥", nostalgia: "💭", surprise: "😲", love: "💖",
+  regret: "😞", sadness: "😢", irritation: "😒", anger: "😡", embarrassment: "😳",
 };
 
-export type Experience = {
-  id: number;
-  title: string;
-  description: string;
-  emotion: EmotionKey;
-  location: string;
-  date: string;
-  tags: string[];
-  trendScore: number;
-  trendId: number;
-  trendName?: string;
-  latitude?: number;
-  longitude?: number;
+const emotionColors: Record<EmotionType, string> = {
+  joy: "#FFD700", excitement: "#FF4500", nostalgia: "#B0C4DE", surprise: "#9932CC",
+  love: "#FF69B4", regret: "#778899", sadness: "#4682B4", irritation: "#F0E68C",
+  anger: "#DC143C", embarrassment: "#FFB6C1",
+};
+
+type MapMarkerItem = {
+  district: string;
+  postCount: number;
+  latitude: number;
+  longitude: number;
 };
 
 export interface MyPostsTabProps {
@@ -90,8 +66,7 @@ export default function MyPostsTab({
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState<SortOption>("최신순");
-  const [emotionFilter, setEmotionFilter] =
-    useState<"전체" | EmotionLabel>("전체");
+  const [emotionFilter, setEmotionFilter] = useState<"전체" | EmotionLabel>("전체");
   const [districtFilter, setDistrictFilter] = useState("");
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
@@ -102,94 +77,59 @@ export default function MyPostsTab({
     setLoading(true);
     try {
       const apiSort =
-        sortOption === "최신순"
-          ? "latest"
-          : sortOption === "트렌드순"
-          ? "trend"
-          : "title";
+        sortOption === "최신순" ? "latest" :
+        sortOption === "트렌드순" ? "trend" : "title";
+      
       let apiEmotion = "all";
       if (emotionFilter !== "전체") {
-        const entry = (Object.entries(emotionLabels) as [
-          EmotionKey,
-          EmotionLabel
-        ][]).find(([, label]) => label === emotionFilter);
+        const entry = (Object.entries(emotionLabels) as [EmotionType, EmotionLabel][])
+          .find(([, label]) => label === emotionFilter);
         apiEmotion = entry ? entry[0].toUpperCase() : "all";
       }
 
-      const list = await postsApi.getAll({
+      const experienceList = await postsApi.getAll({
         sort: apiSort,
         emotion: apiEmotion,
         page: 1,
         size: 100,
+        ...(districtFilter ? { gu: districtFilter } : {}),
       });
 
-      setExperiences(list);
-    } catch {
+      setExperiences(experienceList);
+    } catch (err) {
+      console.error("게시글 로딩 실패:", err);
       Alert.alert("네트워크 오류", "게시글을 불러올 수 없습니다.");
       setExperiences([]);
     } finally {
       setLoading(false);
     }
-  }, [sortOption, emotionFilter]);
+  }, [sortOption, emotionFilter, districtFilter]);
 
   useEffect(() => {
     fetchExperiences();
   }, [fetchExperiences]);
 
-  // ✅ 지도 데이터 업데이트 (districtCoordinates 활용)
   useEffect(() => {
-    if (experiences.length) {
-      console.log("📍 지도 데이터 업데이트 시작, 총 게시글:", experiences.length);
-      
-      // 구별로 게시글 개수 집계
-      const districtCounts: Record<string, number> = {};
-      
-      experiences.forEach((exp, index) => {
-        console.log(`게시글 ${index + 1}:`, {
-          location: exp.location,
-          lat: exp.latitude,
-          lng: exp.longitude
-        });
-        
-        if (exp.location && districtCoordinates[exp.location]) {
-          districtCounts[exp.location] = (districtCounts[exp.location] || 0) + 1;
+    const fetchMapData = async () => {
+      try {
+        const items: MapMarkerItem[] = await postsApi.getMyPostMap();
+        const mapData = items.map((it) => ({
+          district: it.district,
+          postCount: it.postCount,
+          lat: it.latitude,
+          lng: it.longitude,
+        }));
+        if (mapData.length > 0) {
+          setTimeout(() => {
+            webviewRef.current?.postMessage(JSON.stringify({ mapData }));
+          }, 500);
         }
-      });
-
-      console.log("📊 구별 집계 결과:", districtCounts);
-      console.log("📍 사용 가능한 구 좌표:", Object.keys(districtCoordinates));
-
-      // districtCoordinates에서 좌표 가져오기
-      const mapData = Object.keys(districtCounts).map(district => {
-        const coords = districtCoordinates[district];
-        if (coords) {
-          return {
-            district,
-            count: districtCounts[district],
-            lat: coords.lat,
-            lng: coords.lng,
-          };
-        }
-        return null;
-      }).filter(Boolean); // null 제거
-
-      console.log("🗺️ 최종 지도 데이터:", mapData);
-      
-      if (mapData.length > 0) {
-        console.log("🚀 지도로 데이터 전송 시작");
-        
-        // 약간의 지연을 두고 전송 (지도 초기화 완료 대기)
-        setTimeout(() => {
-          webviewRef.current?.postMessage(JSON.stringify({ mapData }));
-          console.log("✅ 지도로 데이터 전송 완료");
-        }, 1000);
-      } else {
-        console.log("❌ 표시할 지도 데이터가 없음");
+      } catch (e) {
+        console.warn("지도 데이터 불러오기 실패", e);
       }
-    } else {
-      console.log("📍 게시글이 없어서 지도 데이터 업데이트 안함");
-    }
-  }, [experiences]);
+    };
+    fetchMapData();
+  }, [experiences]); // experiences가 변경될 때마다 지도 데이터를 다시 불러옵니다.
 
   const handleMessage = (event: any) => {
     try {
@@ -199,120 +139,68 @@ export default function MyPostsTab({
   };
 
   const filteredExperiences = useMemo(() => {
-    return experiences
-      .filter((exp) => {
-        const q = searchQuery.toLowerCase();
-        return (
-          exp.title.toLowerCase().includes(q) ||
-          exp.description.toLowerCase().includes(q) ||
-          exp.location.toLowerCase().includes(q)
-        );
-      })
-      .filter((exp) =>
-        emotionFilter === "전체"
-          ? true
-          : emotionLabels[exp.emotion] === emotionFilter
-      )
-      .filter((exp) =>
-        districtFilter ? exp.location === districtFilter : true
-      )
-      .sort((a, b) => {
-        if (sortOption === "최신순") {
-          return new Date(b.date).getTime() - new Date(a.date).getTime();
-        }
-        if (sortOption === "트렌드순") {
-          return (b.trendScore || 0) - (a.trendScore || 0);
-        }
-        return a.title.localeCompare(b.title);
-      });
-  }, [
-    experiences,
-    searchQuery,
-    sortOption,
-    emotionFilter,
-    districtFilter,
-  ]);
+    if (!searchQuery) return experiences;
+    return experiences.filter((exp) => {
+      const q = searchQuery.toLowerCase();
+      const descriptionText = exp.description || "";
+      return (
+        exp.title.toLowerCase().includes(q) ||
+        descriptionText.toLowerCase().includes(q) ||
+        exp.location.toLowerCase().includes(q)
+      );
+    });
+  }, [experiences, searchQuery]);
 
-  // ✅ 개선된 게시글 카드 렌더링 (크기 축소 및 레이아웃 개선)
-  const renderExperienceCard = ({ item }: { item: Experience }) => (
-    <TouchableOpacity 
-      style={styles.card}
-      onPress={() => onExperienceClick(item)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.cardContent}>
+  const renderExperienceCard = ({ item }: { item: Experience }) => {
+    const emKey = item.emotion || "joy";
+    const bg = emotionColors[emKey] ? `${emotionColors[emKey]}30` : "#EEEEEE";
+
+    return (
+      <TouchableOpacity style={styles.card} onPress={() => onExperienceClick(item)} activeOpacity={0.8}>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
-          <View style={styles.emotionBadge}>
-            <Text style={styles.emotionIcon}>{emotionIcons[item.emotion]}</Text>
-          </View>
-        </View>
-        
-        {/* ✅ 설명 텍스트 표시 확실히 하기 */}
-        {item.description && item.description.trim() && (
-          <Text style={styles.cardDescription} numberOfLines={2}>
-            {item.description.trim()}
-          </Text>
-        )}
-        
-        <View style={styles.cardMeta}>
-          <View style={styles.metaRow}>
-            <Ionicons name="location-outline" size={12} color="#6B7280" />
-            <Text style={styles.metaText}>{item.location}</Text>
-            <Ionicons name="calendar-outline" size={12} color="#6B7280" style={{ marginLeft: 8 }} />
-            <Text style={styles.metaText}>
-              {new Date(item.date).toLocaleDateString("ko-KR", { 
-                year: "numeric", 
-                month: "short", 
-                day: "numeric" 
-              })}
-            </Text>
-          </View>
-        </View>
-
-        {/* ✅ 간소화된 태그 (최대 2개) */}
-        {item.tags.length > 0 && (
-          <View style={styles.tagsContainer}>
-            {item.tags.slice(0, 2).map((tag, index) => (
-              <View key={index} style={styles.tag}>
-                <Text style={styles.tagText}>#{tag}</Text>
-              </View>
-            ))}
-            {item.tags.length > 2 && (
-              <Text style={styles.moreTagsText}>+{item.tags.length - 2}</Text>
-            )}
-          </View>
-        )}
-
-        <View style={styles.cardFooter}>
+          <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
           <View style={styles.trendInfo}>
-            <Ionicons name="trending-up" size={12} color="#7C3AED" />
-            <Text style={styles.trendText}>{item.trendScore}</Text>
+            <Text style={styles.trendName}>{item.trendName || "트렌드"}</Text>
+            <Text style={styles.trendScore}>{item.trendScore}</Text>
+          </View>
+        </View>
+        <View style={styles.cardMeta}>
+          <Ionicons name="calendar-outline" size={12} color="#9E9E9E" />
+          <Text style={styles.metaText}>{new Date(item.date).toLocaleDateString("ko-KR", { year: "2-digit", month: "2-digit", day: "2-digit" })}</Text>
+          <Ionicons name="location-outline" size={12} color="#9E9E9E" style={{ marginLeft: 10 }} />
+          <Text style={styles.metaText}>{item.location}</Text>
+        </View>
+        {(item.description || "").trim().length > 0 && (
+          <Text style={styles.cardDescription} numberOfLines={2}>{item.description.trim()}</Text>
+        )}
+        <View style={styles.tagsAndActionsContainer}>
+          <View style={styles.tagsContainer}>
+            <View style={[styles.tag, styles.emotionTag, { backgroundColor: bg }]}>
+              <Text style={styles.emotionTagText}>{emotionIcons[emKey] ?? "🙂"}</Text>
+            </View>
+            {item.tags?.slice(0, 3).map((tag, index) => (
+              <View key={index} style={styles.tag}><Text style={styles.tagText}>#{tag}</Text></View>
+            ))}
+            {item.tags?.length > 3 && <Text style={styles.moreTagsText}>+{item.tags.length - 3}</Text>}
           </View>
           <View style={styles.actions}>
-            <TouchableOpacity 
-              onPress={(e) => {
-                e.stopPropagation();
-                onEditExperience(item);
-              }}
-              style={styles.actionButton}
-            >
-              <Ionicons name="create-outline" size={16} color="#6B7280" />
+            <TouchableOpacity onPress={(e) => { e.stopPropagation(); onEditExperience(item); }} style={styles.actionButton}>
+              <MaterialCommunityIcons name="pencil-outline" size={18} color="#9E9E9E" />
             </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={(e) => {
-                e.stopPropagation();
-                onDeleteExperience(item.id);
-              }}
-              style={styles.actionButton}
-            >
-              <Ionicons name="trash-outline" size={16} color="#EF4444" />
+            <TouchableOpacity onPress={(e) => { e.stopPropagation(); onDeleteExperience(item.id); }} style={styles.actionButton}>
+              <MaterialCommunityIcons name="trash-can-outline" size={18} color="#F44336" />
             </TouchableOpacity>
           </View>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
+  
+  const handleApplyFilters = () => {
+    setSortOpen(false);
+    setEmotionOpen(false);
+    setShowFilterModal(false);
+  };
 
   if (loading) {
     return (
@@ -331,222 +219,30 @@ export default function MyPostsTab({
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <>
-            {/* 헤더 */}
             <View style={styles.header}>
               <View>
                 <Text style={styles.title}>내 게시글</Text>
-                <Text style={styles.subtitle}>
-                  총 {filteredExperiences.length}개 경험
-                  {districtFilter && ` • ${districtFilter} 필터링 중`}
-                </Text>
+                <Text style={styles.subtitle}>총 {experiences.length}개 경험</Text>
               </View>
-              <TouchableOpacity
-                style={styles.filterButton}
-                onPress={() => setShowFilterModal(true)}
-              >
-                <Ionicons name="options" size={16} color="#7C3AED" />
+              <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
+                <Ionicons name="options-outline" size={20} color="#424242" />
               </TouchableOpacity>
             </View>
-
-            {/* ✅ 개선된 지도 */}
             <View style={styles.mapWrapper}>
               <WebView
                 ref={webviewRef}
                 originWhitelist={["*"]}
                 source={{
-                  html: `
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=34bb066fa35861f283d741758f61344f"></script>
-    <style>
-      html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
-      #map { width: 100%; height: 100%; background-color: #f0f0f0; }
-      .custom-overlay {
-        background: #7C3AED;
-        color: white;
-        padding: 6px 10px;
-        border-radius: 16px;
-        font-size: 11px;
-        font-weight: bold;
-        border: 2px solid white;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-        cursor: pointer;
-        transition: all 0.2s;
-        white-space: nowrap;
-        pointer-events: auto;
-      }
-      .custom-overlay:hover {
-        background: #5B21B6;
-        transform: scale(1.05);
-      }
-    </style>
-  </head>
-  <body>
-    <div id="map"></div>
-    <script>
-      console.log('🗺️ 지도 스크립트 로드됨');
-      
-      let map = null;
-      let overlays = [];
-      
-      function initMap() {
-        if (!window.kakao || !window.kakao.maps) {
-          console.error('❌ 카카오 맵 API 로드 실패');
-          document.getElementById('map').innerHTML = 
-            '<div style="display:flex;justify-content:center;align-items:center;width:100%;height:100%;font-size:14px;color:#666;">🗺️ 지도 로드 실패</div>';
-          return;
-        }
-        
-        console.log('✅ 카카오 맵 API 로드 성공');
-        
-        try {
-          const container = document.getElementById('map');
-          const options = {
-            center: new kakao.maps.LatLng(37.5665, 126.9780),
-            level: 8
-          };
-          
-          map = new kakao.maps.Map(container, options);
-          console.log('✅ 지도 초기화 완료');
-          
-          // 테스트용 마커 추가
-          const testMarker = new kakao.maps.Marker({
-            position: new kakao.maps.LatLng(37.5665, 126.9780)
-          });
-          testMarker.setMap(map);
-          console.log('✅ 테스트 마커 추가 완료');
-          
-        } catch (error) {
-          console.error('❌ 지도 초기화 오류:', error);
-        }
-      }
-      
-      function updateMapData(data) {
-        if (!map) {
-          console.error('❌ 지도가 초기화되지 않음');
-          return;
-        }
-        
-        console.log('📍 지도 데이터 업데이트:', data);
-        
-        // 기존 오버레이 제거
-        overlays.forEach(overlay => {
-          overlay.setMap(null);
-        });
-        overlays = [];
-        
-        if (data.mapData && data.mapData.length > 0) {
-          data.mapData.forEach((item, index) => {
-                          console.log('오버레이 ' + (index + 1) + ' 생성:', item);
-            
-            try {
-              const position = new kakao.maps.LatLng(item.lat, item.lng);
-              
-              const overlayContent = document.createElement('div');
-              overlayContent.className = 'custom-overlay';
-              overlayContent.innerHTML = item.district + ' (' + item.count + ')';
-              overlayContent.onclick = function() {
-                console.log('🖱️ 오버레이 클릭:', item.district);
-                if (window.ReactNativeWebView) {
-                  window.ReactNativeWebView.postMessage(JSON.stringify({ 
-                    district: item.district 
-                  }));
-                }
-              };
-              
-              const customOverlay = new kakao.maps.CustomOverlay({
-                position: position,
-                content: overlayContent,
-                yAnchor: 1
-              });
-              
-              customOverlay.setMap(map);
-              overlays.push(customOverlay);
-              
-              console.log('✅ 오버레이 ' + (index + 1) + ' 추가 완료');
-              
-            } catch (error) {
-              console.error('❌ 오버레이 ' + (index + 1) + ' 생성 오류:', error);
-            }
-          });
-          
-          // 첫 번째 위치로 지도 중심 이동
-          if (data.mapData[0]) {
-            const centerPos = new kakao.maps.LatLng(data.mapData[0].lat, data.mapData[0].lng);
-            map.setCenter(centerPos);
-            console.log('🎯 지도 중심 이동 완료');
-          }
-          
-          console.log('✅ 총 ' + overlays.length + '개 오버레이 생성 완료');
-        } else {
-          console.log('📍 표시할 데이터가 없음');
-        }
-      }
-      
-      // 카카오 맵 로드 후 초기화
-      if (window.kakao && window.kakao.maps) {
-        initMap();
-      } else {
-        // 스크립트 로드 대기
-        const checkKakao = setInterval(() => {
-          if (window.kakao && window.kakao.maps) {
-            clearInterval(checkKakao);
-            initMap();
-          }
-        }, 100);
-        
-        // 10초 후 타임아웃
-        setTimeout(() => {
-          clearInterval(checkKakao);
-          if (!map) {
-            console.error('❌ 카카오 맵 로드 타임아웃');
-            document.getElementById('map').innerHTML = 
-              '<div style="display:flex;justify-content:center;align-items:center;width:100%;height:100%;font-size:14px;color:#666;">🗺️ 지도 로드 타임아웃</div>';
-          }
-        }, 10000);
-      }
-      
-      // 메시지 리스너
-      window.addEventListener('message', function(e) {
-        try {
-          console.log('📨 메시지 수신:', e.data);
-          const data = JSON.parse(e.data);
-          updateMapData(data);
-        } catch (error) {
-          console.error('❌ 메시지 처리 오류:', error);
-        }
-      });
-      
-    </script>
-  </body>
-</html>`,
+                  html: `<!DOCTYPE html><html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=34bb066fa35861f283d741758f61344f"></script><style>html, body { margin: 0; padding: 0; width: 100%; height: 100%; } #map { width: 100%; height: 100%; background-color: #f0f0f0; } .custom-pin { position: relative; display: flex; justify-content: center; align-items: center; width: 32px; height: 32px; background: #EF4444; color: white; font-size: 13px; font-weight: bold; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.4); cursor: pointer; transition: all 0.2s; pointer-events: auto; } .custom-pin:hover { background: #DC2626; transform: rotate(-45deg) scale(1.1); } .pin-text { transform: rotate(45deg); } </style></head><body><div id="map"></div><script>let map = null; let overlays = []; function initMap() { if (!window.kakao || !window.kakao.maps) return; const container = document.getElementById('map'); const options = { center: new kakao.maps.LatLng(37.5665, 126.9780), level: 8 }; map = new kakao.maps.Map(container, options); } function updateMapData(data) { if (!map || !data.mapData) return; overlays.forEach(overlay => overlay.setMap(null)); overlays = []; data.mapData.forEach(item => { try { const position = new kakao.maps.LatLng(item.lat, item.lng); const overlayContent = document.createElement('div'); overlayContent.className = 'custom-pin'; const textSpan = document.createElement('span'); textSpan.className = 'pin-text'; textSpan.innerHTML = item.postCount; overlayContent.appendChild(textSpan); overlayContent.onclick = function() { if (window.ReactNativeWebView) { window.ReactNativeWebView.postMessage(JSON.stringify({ district: item.district })); } }; const customOverlay = new kakao.maps.CustomOverlay({ position: position, content: overlayContent, yAnchor: 1.4, xAnchor: 0.5 }); customOverlay.setMap(map); overlays.push(customOverlay); } catch (error) { console.error('오버레이 생성 오류:', error); } }); if (data.mapData[0]) { const centerPos = new kakao.maps.LatLng(data.mapData[0].lat, data.mapData[0].lng); map.setCenter(centerPos); } } if (window.kakao && window.kakao.maps) { initMap(); } else { const interval = setInterval(() => { if (window.kakao && window.kakao.maps) { clearInterval(interval); initMap(); } }, 100); } window.addEventListener('message', e => { try { const data = JSON.parse(e.data); updateMapData(data); } catch (error) {} }); </script></body></html>`
                 }}
                 javaScriptEnabled
                 domStorageEnabled
-                mixedContentMode="compatibility"
-                allowsInlineMediaPlayback
-                startInLoadingState
                 onMessage={handleMessage}
               />
             </View>
-
-            {/* 검색창 */}
             <View style={styles.searchContainer}>
-              <Ionicons name="search-outline" size={20} color="#9CA3AF" style={styles.searchIcon} />
-              <TextInput
-                placeholder="내 경험 검색..."
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                style={styles.searchInput}
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery("")} style={styles.clearButton}>
-                  <Ionicons name="close-circle" size={20} color="#9CA3AF" />
-                </TouchableOpacity>
-              )}
+              <Ionicons name="search-outline" size={20} color="#9E9E9E" />
+              <TextInput placeholder="내 경험 검색..." value={searchQuery} onChangeText={setSearchQuery} style={styles.searchInput} />
             </View>
           </>
         }
@@ -560,42 +256,28 @@ export default function MyPostsTab({
         }
         contentContainerStyle={{ paddingBottom: 20 }}
       />
-
-      {/* 필터 모달 */}
       <Modal visible={showFilterModal} transparent animationType="slide">
         <View style={styles.modalBackground}>
           <View style={styles.modalContainer}>
             <Text style={styles.modalTitle}>필터 설정</Text>
-
             <Text style={styles.label}>정렬 기준</Text>
-            <DropDownPicker<SortOption>
-              open={sortOpen}
-              setOpen={setSortOpen}
-              value={sortOption}
-              setValue={setSortOption}
-              items={sortOptions.map(s => ({ label: s, value: s }))}
-              style={styles.dropdown}
-              zIndex={3000}
+            <DropDownPicker
+              open={sortOpen} setOpen={setSortOpen} value={sortOption} setValue={setSortOption}
+              items={sortOptions.map((s) => ({ label: s, value: s }))}
+              style={styles.dropdown} dropDownContainerStyle={styles.dropdownContainer}
+              zIndex={3000} zIndexInverse={1000}
             />
-
             <Text style={styles.label}>감정 필터</Text>
-            <DropDownPicker<"전체"|EmotionLabel>
-              open={emotionOpen}
-              setOpen={setEmotionOpen}
-              value={emotionFilter}
-              setValue={setEmotionFilter}
-              items={[
-                { label: "전체", value: "전체" },
-                ...Object.values(emotionLabels).map(lbl => ({ label: lbl, value: lbl })),
+            <DropDownPicker
+              open={emotionOpen} setOpen={setEmotionOpen} value={emotionFilter} setValue={setEmotionFilter}
+              items={[{ label: "모든 감정", value: "전체" }, ...Object.entries(emotionLabels).map(([key, label]) => ({
+                  label: `${emotionIcons[key as EmotionType]} ${label}`, value: label,
+                })),
               ]}
-              style={styles.dropdown}
-              zIndex={2000}
+              style={styles.dropdown} dropDownContainerStyle={styles.dropdownContainer}
+              zIndex={2000} zIndexInverse={2000}
             />
-
-            <TouchableOpacity 
-              style={styles.closeButton} 
-              onPress={() => setShowFilterModal(false)}
-            >
+            <TouchableOpacity style={styles.closeButton} onPress={handleApplyFilters}>
               <Text style={styles.closeText}>적용</Text>
             </TouchableOpacity>
           </View>
@@ -606,218 +288,60 @@ export default function MyPostsTab({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FAFAFA" },
-  loader: { flex: 1, justifyContent: "center", alignItems: "center" },
-  loadingText: { marginTop: 12, color: "#6B7280", fontSize: 14 },
-  header: { 
-    flexDirection: "row", 
-    justifyContent: "space-between", 
-    alignItems: "center", 
-    padding: 16,
-    backgroundColor: "#FFFFFF"
+  container: { flex: 1, backgroundColor: "#F5F5F5" },
+  loader: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F5F5F5" },
+  loadingText: { marginTop: 10, color: "#757575" },
+  header: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    padding: 16, backgroundColor: "#FFFFFF", borderBottomWidth: 1, borderBottomColor: "#EEEEEE",
   },
-  title: { fontSize: 22, fontWeight: "bold", color: "#1F2937" },
-  subtitle: { fontSize: 12, color: "#6B7280", marginTop: 2 },
-  filterButton: { 
-    borderWidth: 1, 
-    borderColor: "#7C3AED", 
-    padding: 8, 
-    borderRadius: 8, 
-    backgroundColor: "#F3F4F6" 
-  },
-  mapWrapper: {
-    height: screenHeight * 0.25,
-    borderRadius: 0,
-    overflow: "hidden",
-    marginBottom: 0,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
+  title: { fontSize: 22, fontWeight: "bold", color: "#212121" },
+  subtitle: { fontSize: 12, color: "#757575", marginTop: 2 },
+  filterButton: { padding: 8 },
+  mapWrapper: { height: screenHeight * 0.22, backgroundColor: "#E0E0E0" },
   searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
-    marginHorizontal: 16,
-    marginVertical: 16,
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 12,
-    elevation: 1,
+    flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF",
+    borderRadius: 8, marginHorizontal: 16, marginTop: 16,
+    paddingHorizontal: 12, borderWidth: 1, borderColor: "#EEEEEE",
   },
-  searchIcon: { marginRight: 8 },
-  searchInput: { 
-    flex: 1, 
-    paddingVertical: 14, 
-    fontSize: 14, 
-    color: "#374151" 
-  },
-  clearButton: { padding: 4 },
-  
-  // ✅ 컴팩트한 카드 스타일
+  searchInput: { flex: 1, paddingVertical: 12, fontSize: 14, marginLeft: 8 },
   card: {
-    backgroundColor: "#FFFFFF",
-    marginHorizontal: 16,
-    marginBottom: 8,  // 줄임
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  cardContent: {
-    padding: 12,  // 줄임
+    backgroundColor: "#FFFFFF", borderRadius: 12, marginHorizontal: 16,
+    marginTop: 12, borderWidth: 1, borderColor: "#EEEEEE", padding: 16,
   },
   cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",  // 변경
-    marginBottom: 6,  // 줄임
+    flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8,
   },
-  cardTitle: { 
-    flex: 1,
-    fontWeight: "600",  // 줄임
-    fontSize: 16,  // 줄임
-    color: "#1F2937",
-    marginRight: 8,
-    lineHeight: 20,  // 줄임
-  },
-  emotionBadge: {
-    backgroundColor: "#F3F4F6",
-    borderRadius: 12,  // 줄임
-    paddingHorizontal: 6,  // 줄임
-    paddingVertical: 2,  // 줄임
-  },
-  emotionIcon: { fontSize: 16 },  // 줄임
+  cardTitle: { fontSize: 16, fontWeight: "bold", color: "#212121", flex: 1, marginRight: 10, lineHeight: 24 },
+  trendInfo: { alignItems: "flex-end" },
+  trendName: { fontSize: 10, color: "#757575" },
+  trendScore: { fontSize: 18, fontWeight: "bold", color: "#673AB7", marginTop: 2 },
+  cardMeta: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
+  metaText: { fontSize: 12, color: "#757575", marginLeft: 4 },
   cardDescription: { 
-    color: "#4B5563", 
-    lineHeight: 18,  // 줄임
-    marginBottom: 8,  // 줄임
-    fontSize: 13,  // 줄임
+    fontSize: 14, color: "#4B5563", lineHeight: 22,
+    marginBottom: 12, marginLeft: 4, fontStyle: 'italic',
   },
-  cardMeta: {
-    marginBottom: 8,  // 줄임
+  tagsAndActionsContainer: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4,
   },
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  metaText: { 
-    fontSize: 11,  // 줄임
-    color: "#6B7280", 
-    marginLeft: 4,  // 줄임
-  },
-  tagsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginBottom: 8,  // 줄임
-  },
-  tag: {
-    backgroundColor: "#EEF2FF",
-    borderRadius: 8,  // 줄임
-    paddingHorizontal: 6,  // 줄임
-    paddingVertical: 2,  // 줄임
-    marginRight: 4,  // 줄임
-    marginBottom: 2,  // 줄임
-  },
-  tagText: {
-    fontSize: 10,  // 줄임
-    color: "#6366F1",
-    fontWeight: "500",
-  },
-  moreTagsText: {
-    fontSize: 10,  // 줄임
-    color: "#9CA3AF",
-    alignSelf: "center",
-  },
-  cardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingTop: 6,  // 줄임
-    borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
-  },
-  trendInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  trendText: { 
-    fontWeight: "600",  // 줄임
-    color: "#7C3AED", 
-    marginLeft: 3,  // 줄임
-    fontSize: 12,  // 줄임
-  },
-  actions: { 
-    flexDirection: "row", 
-    alignItems: "center" 
-  },
-  actionButton: {
-    padding: 6,  // 줄임
-    marginLeft: 2,  // 줄임
-  },
-  
-  emptyContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 60,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#6B7280",
-    marginTop: 16,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: "#9CA3AF",
-    marginTop: 8,
-  },
-  
-  // 모달 스타일
-  modalBackground: { 
-    flex: 1, 
-    backgroundColor: "rgba(0,0,0,0.5)", 
-    justifyContent: "center", 
-    padding: 24 
-  },
-  modalContainer: { 
-    backgroundColor: "#fff", 
-    borderRadius: 16, 
-    padding: 20 
-  },
-  modalTitle: { 
-    fontSize: 18, 
-    fontWeight: "bold", 
-    marginBottom: 20, 
-    textAlign: "center" 
-  },
-  label: { 
-    fontSize: 13, 
-    color: "#4B5563", 
-    marginBottom: 8, 
-    fontWeight: "500" 
-  },
-  dropdown: { 
-    borderColor: "#D1D5DB", 
-    borderWidth: 1, 
-    borderRadius: 10, 
-    marginBottom: 16, 
-    backgroundColor: "#FAFAFA" 
-  },
-  closeButton: { 
-    marginTop: 16, 
-    backgroundColor: "#7C3AED", 
-    padding: 14, 
-    borderRadius: 10 
-  },
-  closeText: { 
-    textAlign: "center", 
-    color: "white", 
-    fontWeight: "600" 
-  },
+  tagsContainer: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", flex: 1 },
+  tag: { borderRadius: 16, paddingHorizontal: 10, paddingVertical: 5, marginRight: 6, marginBottom: 6, backgroundColor: "#EEEEEE" },
+  emotionTag: { paddingHorizontal: 8, paddingVertical: 4, minWidth: 30, height: 26, justifyContent: "center", alignItems: "center", borderRadius: 13 },
+  tagText: { fontSize: 12, color: "#616161", fontWeight: "500" },
+  emotionTagText: { fontSize: 14, textAlign: "center" },
+  moreTagsText: { fontSize: 12, color: "#9E9E9E" },
+  actions: { flexDirection: "row" },
+  actionButton: { marginLeft: 8, padding: 4 },
+  emptyContainer: { alignItems: "center", justifyContent: "center", paddingVertical: 60 },
+  emptyTitle: { fontSize: 18, fontWeight: "600", color: "#6B7280", marginTop: 16 },
+  emptySubtitle: { fontSize: 14, color: "#9CA3AF", marginTop: 8 },
+  modalBackground: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 24 },
+  modalContainer: { backgroundColor: "#fff", borderRadius: 16, padding: 20 },
+  modalTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 20, textAlign: "center" },
+  label: { fontSize: 13, color: "#4B5563", marginBottom: 8, fontWeight: "500" },
+  dropdown: { borderColor: "#D1D5DB", borderWidth: 1, borderRadius: 10, marginBottom: 16, backgroundColor: "#FAFAFA" },
+  dropdownContainer: { borderColor: "#D1D5DB", backgroundColor: "#FFFFFF", borderRadius: 10 },
+  closeButton: { marginTop: 16, backgroundColor: "#7C3AED", padding: 14, borderRadius: 10 },
+  closeText: { textAlign: "center", color: "white", fontWeight: "600" },
 });

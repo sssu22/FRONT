@@ -45,7 +45,7 @@ const serverToApp = (post: ServerPost): Experience => {
     comments: post.comments || [],
     liked: post.liked,
     scrapped: post.scrapped,
-    gu: post.gu,
+    //gu: post.gu,
   };
 };
 

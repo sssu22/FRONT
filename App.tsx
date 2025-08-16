@@ -2,31 +2,45 @@ import React, { useState, useCallback } from "react";
 import {
   View, Text, SafeAreaView, Modal, Alert, StatusBar, TouchableOpacity, StyleSheet, TextInput, ActivityIndicator,
 } from "react-native";
-// ✅ 1. NavigationContainer를 import 합니다.
 import { NavigationContainer } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { postsApi } from "./utils/apiUtils";
 import CreateEditPostScreen, { SubmitPayload, InitialData } from "./screens/CreateEditPostScreen";
-import MyPostsTab, { MyPostsTabProps } from "./screens/MyPostsTab";
 import PostDetailScreen from "./screens/PostDetailScreen";
 import WelcomeScreen from "./screens/auth/WelcomeScreen";
 import LoginForm from "./screens/auth/LoginForm";
 import SignUpForm from "./screens/auth/SignUpForm";
+import ResetPasswordForm from "./screens/auth/ResetPasswordForm";
+import ResetConfirmForm from "./screens/auth/ResetConfirmForm";
+
+// ✅ 탭 컴포넌트 import 경로 수정
+import HomeTab from "./screens/HomeTab";
 import TrendsTab from "./screens/TrendsTab";
-import { Experience } from "./types";
+import MyPostsTab from "./screens/MyPostsTab";
+import ProfileTab from "./screens/ProfileTab";
+import ScrapView from "./screens/ScrapView"; // 스크랩 화면 import 추가
+
+import { Experience, User } from "./types";
 import { GlobalProvider, useGlobalContext } from "./GlobalContext";
 
 type TabType = "홈" | "트렌드" | "내 게시물" | "프로필";
-type AuthScreen = "welcome" | "login" | "signup";
+type AuthScreen = "welcome" | "login" | "signup" | "resetPassword" | "resetConfirm";
+
+// ✅ Mock 데이터 추가 (ProfileTab에 필요)
+const mockUserActivity = {
+  views: ['post1', 'post2', 'post3'],
+  searches: ['맛집', '여행'],
+  trendViews: ['trend1', 'trend2'],
+  categoryInterests: { '음식': 5, '라이프스타일': 3 },
+};
 
 export default function App() {
   return (
-    <GlobalProvider>
-      {/* ✅ 2. 앱 전체를 NavigationContainer로 감싸줍니다. */}
-      <NavigationContainer>
-        <AppContent />
-      </NavigationContainer>
-    </GlobalProvider>
+      <GlobalProvider>
+        <NavigationContainer>
+          <AppContent />
+        </NavigationContainer>
+      </GlobalProvider>
   );
 }
 
@@ -40,7 +54,7 @@ const TAB_CONFIG: Record<TabType, { icon: string; label: string }> = {
 function AppContent() {
   const TrendDetailScreen = require("./screens/TrendDetailScreen").default;
   const {
-    user, isInitializing, experiences, trends, loadingExperiences, loadingTrends,
+    user, isInitializing, experiences,
     handleLogin, handleSignup, handleLogout, fetchExperiences,
     showForm, setShowForm, editingExperience, setEditingExperience,
     selectedPostId, setSelectedPostId,
@@ -50,6 +64,7 @@ function AppContent() {
   const [authScreen, setAuthScreen] = useState<AuthScreen>("welcome");
   const [activeTab, setActiveTab] = useState<TabType>("홈");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showScraps, setShowScraps] = useState(false); // ✅ 스크랩 화면 표시 상태
 
   const handleExperienceClick = useCallback((exp: Experience) => {
     setSelectedPostId(exp.id);
@@ -114,82 +129,63 @@ function AppContent() {
     ]);
   }, [selectedPostId, fetchExperiences, setSelectedPostId, handleLogout]);
 
-  const filteredExperiences = Array.isArray(experiences)
-    ? experiences.filter((exp) => {
-        const q = searchQuery.toLowerCase();
-        return (exp.title + exp.description + exp.location + (exp.tags || []).join('')).toLowerCase().includes(q);
-      })
-    : [];
-
   if (isInitializing) {
     return (
-      <SafeAreaView style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
-        <Text style={styles.appTitle}>TrendLog</Text>
-        <ActivityIndicator size="large" color="#7C3AED" style={{marginVertical: 16}}/>
-        <Text style={styles.greeting}>앱을 초기화하는 중...</Text>
-      </SafeAreaView>
+        <SafeAreaView style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
+          <Text style={styles.appTitle}>TrendLog</Text>
+          <ActivityIndicator size="large" color="#7C3AED" style={{marginVertical: 16}}/>
+          <Text style={styles.greeting}>앱을 초기화하는 중...</Text>
+        </SafeAreaView>
     );
   }
 
   if (!user) {
-    if (authScreen === "login") return <LoginForm onLogin={handleLogin} onShowSignup={() => setAuthScreen("signup")} onBack={() => setAuthScreen("welcome")} />;
+    if (authScreen === "login") return <LoginForm onLogin={handleLogin} onShowSignup={() => setAuthScreen("signup")} onBack={() => setAuthScreen("welcome")} onShowResetPassword={() => setAuthScreen("resetPassword")} />;
     if (authScreen === "signup") return <SignUpForm onSignup={handleSignup} onShowLogin={() => setAuthScreen("login")} onBack={() => setAuthScreen("welcome")} />;
+    if (authScreen === 'resetPassword') return <ResetPasswordForm onBack={() => setAuthScreen('login')} />;
+    if (authScreen === 'resetConfirm') return <ResetConfirmForm onBack={() => setAuthScreen('resetPassword')} onComplete={() => setAuthScreen('login')} />;
     return <WelcomeScreen onShowLogin={() => setAuthScreen("login")} onShowSignup={() => setAuthScreen("signup")} />;
   }
 
   const renderTabContent = () => {
-    const isLoading = loadingExperiences || loadingTrends;
-    if (isLoading && activeTab !== '내 게시물') {
-      return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center'}}><ActivityIndicator size="large" /></View>
-    }
-    
     switch (activeTab) {
       case "홈":
+        // ✅ HomeTab에 필요한 props 전달
         return (
-          <View style={{ flex: 1, padding: 16 }}>
-            <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 16 }}>인기 게시물</Text>
-            {filteredExperiences.length > 0 ? (
-              filteredExperiences.map((exp) => (
-                <TouchableOpacity key={exp.id} style={styles.homeCard} onPress={() => handleExperienceClick(exp)}>
-                  <Text style={{ fontWeight: "bold" }}>{exp.title}</Text>
-                  <Text style={{ color: "#6B7280", fontSize: 12 }}>{exp.location} • {new Date(exp.date).toLocaleDateString("ko-KR")}</Text>
-                </TouchableOpacity>
-              ))
-            ) : (
-              <Text style={{ textAlign: "center", color: "#6B7280" }}>
-                {searchQuery ? "검색 결과가 없습니다." : "아직 작성된 게시글이 없습니다."}
-              </Text>
-            )}
-          </View>
+            <HomeTab
+                experiences={experiences as any} // id 타입이 string으로 되어있어 임시로 any 처리
+                onExperienceClick={handleExperienceClick}
+                searchQuery={searchQuery}
+            />
         );
       case "트렌드":
         return (
-          <TrendsTab 
-            searchQuery={searchQuery}
-            onTrendView={(trendId) => {
-              setSelectedTrendId(trendId);
-            }}
-          />
+            <TrendsTab
+                searchQuery={searchQuery}
+                onTrendView={(trendId) => setSelectedTrendId(trendId)}
+            />
         );
-      case "내 게시물": {
-        const props: MyPostsTabProps = {
-          onExperienceClick: handleExperienceClick,
-          onEditExperience: handleEditClick,
-          onDeleteExperience: handleDeleteExperience,
-          searchQuery: searchQuery, // searchQuery prop 추가
-        };
-        return <MyPostsTab {...props} />;
-      }
-      case "프로필":
+      case "내 게시물":
         return (
-          <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 20 }}>
-            <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 16 }}>프로필</Text>
-            <Text style={{ marginBottom: 8 }}>이름: {user.name}</Text>
-            <Text style={{ marginBottom: 24 }}>이메일: {user?.email}</Text>
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-              <Text style={{ color: "white", fontWeight: "600" }}>로그아웃</Text>
-            </TouchableOpacity>
-          </View>
+            <MyPostsTab
+                onExperienceClick={handleExperienceClick}
+                onEditExperience={handleEditClick}
+                onDeleteExperience={handleDeleteExperience}
+                searchQuery={searchQuery}
+            />
+        );
+      case "프로필":
+        // ✅ ProfileTab에 필요한 props 전달
+        return (
+            <ProfileTab
+                experiences={experiences as any} // id 타입이 string으로 되어있어 임시로 any 처리
+                onExperienceClick={handleExperienceClick}
+                onLogout={handleLogout}
+                onShowScraps={() => setShowScraps(true)}
+                user={user as User}
+                scrappedCount={10} // 임시 데이터
+                userActivity={mockUserActivity} // 임시 데이터
+            />
         );
       default:
         return null;
@@ -198,87 +194,90 @@ function AppContent() {
 
   const getSearchPlaceholder = () => {
     switch (activeTab) {
-      case "홈":
-        return "게시물, 위치 검색...";
-      case "트렌드":
-        return "트렌드, 카테고리 검색...";
-      case "내 게시물":
-        return "내 게시물 검색...";
-      default:
-        return "검색...";
+      case "홈": return "경험, 태그, 위치 검색...";
+      case "트렌드": return "트렌드, 카테고리 검색...";
+      case "내 게시물": return "내 게시물 검색...";
+      default: return "검색...";
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
+        <View style={styles.header}>
           <Text style={styles.appTitle}>TrendLog</Text>
+          <TouchableOpacity style={styles.addButton} onPress={() => setShowForm(true)}>
+            <Ionicons name="add" size={24} color="#FFF" />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.addButton} onPress={() => setShowForm(true)}>
-          <Ionicons name="add" size={24} color="#FFF" />
-        </TouchableOpacity>
-      </View>
-      {(activeTab === "홈" || activeTab === "트렌드" || activeTab === "내 게시물") && (
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#9CA3AF" />
-          <TextInput 
-            style={styles.searchInput} 
-            placeholder={getSearchPlaceholder()}
-            value={searchQuery} 
-            onChangeText={setSearchQuery} 
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery("")}>
-              <Ionicons name="close-circle" size={20} color="#9CA3AF" />
-            </TouchableOpacity>
-          )}
+        {(activeTab === "홈" || activeTab === "트렌드" || activeTab === "내 게시물") && (
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={20} color="#9CA3AF" />
+              <TextInput
+                  style={styles.searchInput}
+                  placeholder={getSearchPlaceholder()}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+              />
+              {searchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearchQuery("")}>
+                    <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+                  </TouchableOpacity>
+              )}
+            </View>
+        )}
+        <View style={styles.mainContent}>
+          {renderTabContent()}
         </View>
-      )}
-      <View style={styles.mainContent}>
-        {renderTabContent()}
-      </View>
-      <View style={styles.bottomNav}>
-        {(Object.keys(TAB_CONFIG) as TabType[]).map((tab) => {
-          const cfg = TAB_CONFIG[tab];
-          const active = tab === activeTab;
-          return (
-            <TouchableOpacity key={tab} style={styles.navButton} onPress={() => setActiveTab(tab)}>
-              <Ionicons name={cfg.icon as any} size={24} color={active ? "#7C3AED" : "#9CA3AF"} />
-              <Text style={[styles.navLabel, { color: active ? "#7C3AED" : "#9CA3AF" }]}>{cfg.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-      <Modal visible={showForm} animationType="slide" onRequestClose={() => { setShowForm(false); setEditingExperience(null); }}>
-        <SafeAreaView style={{ flex: 1 }}>
+        <View style={styles.bottomNav}>
+          {(Object.keys(TAB_CONFIG) as TabType[]).map((tab) => {
+            const cfg = TAB_CONFIG[tab];
+            const active = tab === activeTab;
+            return (
+                <TouchableOpacity key={tab} style={styles.navButton} onPress={() => { setActiveTab(tab); setSearchQuery(''); }}>
+                  <Ionicons name={cfg.icon as any} size={24} color={active ? "#7C3AED" : "#9CA3AF"} />
+                  <Text style={[styles.navLabel, { color: active ? "#7C3AED" : "#9CA3AF" }]}>{cfg.label}</Text>
+                </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Modals */}
+        <Modal visible={showForm} animationType="slide" onRequestClose={() => { setShowForm(false); setEditingExperience(null); }}>
           <CreateEditPostScreen
-            onSubmit={(payload) => { editingExperience ? handleUpdateExperience(payload) : handleAddExperience(payload); }}
-            onClose={() => { setShowForm(false); setEditingExperience(null); }}
-            initialData={editingExperience ? ({ ...editingExperience } as InitialData) : null}
+              onSubmit={(payload) => { editingExperience ? handleUpdateExperience(payload) : handleAddExperience(payload); }}
+              onClose={() => { setShowForm(false); setEditingExperience(null); }}
+              initialData={editingExperience ? ({ ...editingExperience } as InitialData) : null}
           />
-        </SafeAreaView>
-      </Modal>
-      <Modal visible={selectedPostId !== null} animationType="slide" onRequestClose={handleCloseDetail}>
-        <SafeAreaView style={{ flex: 1 }}>
+        </Modal>
+
+        <Modal visible={selectedPostId !== null} animationType="slide" onRequestClose={handleCloseDetail}>
           {selectedPostId !== null && <PostDetailScreen postId={selectedPostId} onClose={handleCloseDetail} onTrendPress={handleTrendPress} />}
-        </SafeAreaView>
-      </Modal>
+        </Modal>
 
-      <Modal visible={selectedTrendId !== null} animationType="slide" onRequestClose={() => setSelectedTrendId(null)}>
-        <SafeAreaView style={{ flex: 1 }}>
+        <Modal visible={selectedTrendId !== null} animationType="slide" onRequestClose={() => setSelectedTrendId(null)}>
           {selectedTrendId !== null && (
-            <TrendDetailScreen
-              trendId={selectedTrendId}
-              onClose={() => setSelectedTrendId(null)}
-              onNavigateToTrend={(newTrendId: number) => setSelectedTrendId(newTrendId)}
-            />
+              <TrendDetailScreen
+                  trendId={selectedTrendId}
+                  onClose={() => setSelectedTrendId(null)}
+                  onNavigateToTrend={(newTrendId: number) => setSelectedTrendId(newTrendId)}
+              />
           )}
-        </SafeAreaView>
-      </Modal>
+        </Modal>
 
-    </SafeAreaView>
+        {/* ✅ 스크랩 화면 모달 추가 */}
+        <Modal visible={showScraps} animationType="slide" onRequestClose={() => setShowScraps(false)}>
+          <ScrapView
+              experiences={experiences as any}
+              scrappedExperiences={['5', '7']} // 임시 데이터
+              scrappedTrends={['1', '3']} // 임시 데이터
+              onExperienceClick={handleExperienceClick}
+              onToggleExperienceScrap={() => {}} // 임시 함수
+              onToggleTrendScrap={() => {}} // 임시 함수
+              onClose={() => setShowScraps(false)}
+          />
+        </Modal>
+      </SafeAreaView>
   );
 }
 
@@ -293,7 +292,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  headerLeft: { flex: 1 },
   appTitle: { fontSize: 20, fontWeight: "bold", color: "#7C3AED" },
   greeting: { fontSize: 14, color: "#6B7280" },
   addButton: { backgroundColor: "#7C3AED", padding: 8, borderRadius: 8 },
@@ -327,5 +325,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#EF4444",
     padding: 12,
     borderRadius: 8,
+    marginTop: 12,
   },
 });

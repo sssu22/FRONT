@@ -1,23 +1,19 @@
 // ProfileTab.tsx
 import React, { useState } from "react";
 import {
-  ScrollView,
   View,
   Text,
-  StyleSheet,
+  ScrollView,
   TouchableOpacity,
   Modal,
+  StyleSheet,
+  SafeAreaView,
 } from "react-native";
-import { Card, Button } from "react-native-paper";
+import { Card, Button, IconButton } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import ProfileEdit from "./ProfileEdit";
 
-// 경험 데이터 타입 (id를 number로 통일)
-export interface Experience {
-  id: number;
-  title: string;
-  date: string;
-  location: string;
-  emotion:
+type EmotionType =
     | "joy"
     | "excitement"
     | "nostalgia"
@@ -28,198 +24,212 @@ export interface Experience {
     | "irritation"
     | "anger"
     | "embarrassment";
+
+const emotionIcons: Record<EmotionType, string> = {
+  joy: "😊",
+  excitement: "🔥",
+  nostalgia: "💭",
+  surprise: "😲",
+  love: "💖",
+  regret: "😞",
+  sadness: "😢",
+  irritation: "😒",
+  anger: "😡",
+  embarrassment: "😳",
+};
+
+interface Experience {
+  id: string;
+  title: string;
+  date: string;
+  location: string;
+  emotion: EmotionType;
   tags: string[];
   description: string;
   trendScore: number;
+}
+
+interface UserType {
+  id: string;
+  email: string;
+  name: string;
+  avatar?: string;
 }
 
 interface ProfileTabProps {
   experiences: Experience[];
   onExperienceClick: (exp: Experience) => void;
   onLogout: () => void;
+  onShowScraps: () => void;
+  user: UserType;
+  scrappedCount: number;
 }
 
 export default function ProfileTab({
-  experiences,
-  onExperienceClick,
-  onLogout,
-}: ProfileTabProps) {
+                                     experiences,
+                                     onExperienceClick,
+                                     onLogout,
+                                     onShowScraps,
+                                     user,
+                                     scrappedCount,
+                                   }: ProfileTabProps) {
   const [showProfileEdit, setShowProfileEdit] = useState(false);
-  const [showAnalysisReport, setShowAnalysisReport] = useState(false);
 
-  // 주요 통계 계산
   const totalTrendScore = experiences.reduce((sum, e) => sum + e.trendScore, 0);
   const avgTrendScore = experiences.length
-    ? Math.round(totalTrendScore / experiences.length)
-    : 0;
+      ? Math.round(totalTrendScore / experiences.length)
+      : 0;
   const uniqueLocations = new Set(experiences.map((e) => e.location)).size;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {/* 주요 통계 */}
-      <View style={styles.statsGrid}>
-        <StatCard label="총 경험" value={experiences.length.toString()} />
-        <StatCard label="평균 트렌드 점수" value={avgTrendScore.toString()} />
-        <StatCard label="방문 지역" value={uniqueLocations.toString()} />
-      </View>
+      <ScrollView contentContainerStyle={styles.container}>
+        {/* 프로필 헤더 */}
+        <View style={styles.header}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {user.avatar ? "👤" : user.name.charAt(0).toUpperCase()}
+            </Text>
+          </View>
+          <View style={styles.profileInfo}>
+            <Text style={styles.username}>{user.name}</Text>
+            <Text style={styles.email}>{user.email}</Text>
+          </View>
+          <IconButton
+              icon={() => <Ionicons name="settings-outline" size={22} color="#7C3AED" />}
+              onPress={() => setShowProfileEdit(true)}
+              style={{ marginLeft: "auto" }}
+          />
+        </View>
 
-      {/* 최근 경험 */}
-      <Text style={styles.sectionTitle}>최근 경험</Text>
-      {experiences.length === 0 ? (
-        <Text style={styles.emptyText}>아직 경험이 없습니다.</Text>
-      ) : (
-        experiences.slice(0, 3).map((exp) => (
-          <TouchableOpacity
-            key={exp.id}
-            style={styles.activityItem}
-            onPress={() => onExperienceClick(exp)}
+        {/* 활동 요약 */}
+        <Text style={styles.sectionTitle}>내 활동 요약</Text>
+        <View style={styles.grid}>
+          <Card style={styles.statCard}>
+            <Text style={styles.statValue}>{experiences.length}</Text>
+            <Text style={styles.statLabel}>총 경험</Text>
+          </Card>
+          <Card style={styles.statCard}>
+            <Text style={styles.statValue}>{avgTrendScore}</Text>
+            <Text style={styles.statLabel}>평균 트렌드</Text>
+          </Card>
+          <Card style={styles.statCard}>
+            <Text style={styles.statValue}>{uniqueLocations}</Text>
+            <Text style={styles.statLabel}>방문 지역</Text>
+          </Card>
+          <Card style={styles.statCard}>
+            <Text style={styles.statValue}>{scrappedCount}</Text>
+            <Text style={styles.statLabel}>스크랩</Text>
+          </Card>
+        </View>
+
+        {/* 최근 활동 */}
+        <Card style={styles.recentCard}>
+          <Text style={styles.sectionTitle}>최근 활동</Text>
+          {experiences.length === 0 ? (
+              <Text style={styles.emptyText}>아직 경험이 없습니다</Text>
+          ) : (
+              experiences.slice(0, 5).map((exp) => (
+                  <TouchableOpacity
+                      key={exp.id}
+                      style={styles.activityItem}
+                      onPress={() => onExperienceClick(exp)}
+                  >
+                    <Text style={styles.emotionIcon}>{emotionIcons[exp.emotion]}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.activityTitle}>{exp.title}</Text>
+                      <Text style={styles.activityDate}>
+                        {new Date(exp.date).toLocaleDateString("ko-KR")} • {exp.location}
+                      </Text>
+                    </View>
+                    <Text style={styles.scoreText}>{exp.trendScore}점</Text>
+                  </TouchableOpacity>
+              ))
+          )}
+        </Card>
+
+        {/* 하단 버튼 */}
+        <View style={styles.buttonContainer}>
+          <Button mode="outlined" onPress={onShowScraps} style={styles.actionButton}>
+            스크랩 보기
+          </Button>
+          <Button
+              mode="outlined"
+              onPress={() => setShowProfileEdit(true)}
+              style={styles.actionButton}
           >
-            <Text style={styles.activityTitle}>{exp.title}</Text>
-            <Text style={styles.activityDate}>
-              {new Date(exp.date).toLocaleDateString("ko-KR")}
-            </Text>
-          </TouchableOpacity>
-        ))
-      )}
-
-      {/* 액션 버튼 */}
-      <View style={styles.buttonContainer}>
-        <Button
-          mode="outlined"
-          onPress={() => setShowAnalysisReport(true)}
-          style={styles.actionButton}
-        >
-          개인 분석 보고서
-        </Button>
-        <Button
-          mode="outlined"
-          onPress={() => setShowProfileEdit(true)}
-          style={styles.actionButton}
-        >
-          프로필 편집
-        </Button>
-        <Button
-          mode="contained"
-          onPress={onLogout}
-          style={[styles.actionButton, styles.logoutButton]}
-        >
-          로그아웃
-        </Button>
-      </View>
-
-      {/* 프로필 편집 모달 (내용은 나중에 구현) */}
-      <Modal
-        visible={showProfileEdit}
-        onRequestClose={() => setShowProfileEdit(false)}
-        transparent
-        animationType="slide"
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>프로필 편집</Text>
-            <Text style={styles.modalContent}>
-              프로필 편집 기능은 추후 구현됩니다.
-            </Text>
-            <Button onPress={() => setShowProfileEdit(false)}>닫기</Button>
-          </View>
+            프로필 편집
+          </Button>
+          <Button mode="contained" onPress={onLogout} style={styles.logoutButton}>
+            로그아웃
+          </Button>
         </View>
-      </Modal>
 
-      {/* 개인 분석 보고서 모달 (내용은 나중에 구현) */}
-      <Modal
-        visible={showAnalysisReport}
-        onRequestClose={() => setShowAnalysisReport(false)}
-        transparent
-        animationType="slide"
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>개인 분석 보고서</Text>
-            <Text style={styles.modalContent}>
-              분석 보고서 기능은 추후 구현됩니다.
-            </Text>
-            <Button onPress={() => setShowAnalysisReport(false)}>닫기</Button>
-          </View>
-        </View>
-      </Modal>
-    </ScrollView>
-  );
-}
-
-// 통계 카드 컴포넌트
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <Card style={styles.statCard}>
-      <View style={styles.statCardContent}>
-        <Text style={styles.statValue}>{value}</Text>
-        <Text style={styles.statLabel}>{label}</Text>
-      </View>
-    </Card>
+        {/* 모달: 프로필 편집 */}
+        <Modal
+            visible={showProfileEdit}
+            onRequestClose={() => setShowProfileEdit(false)}
+            animationType="slide"
+        >
+          <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+            <ProfileEdit onClose={() => setShowProfileEdit(false)} />
+          </SafeAreaView>
+        </Modal>
+      </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: "#FFFFFF" },
-  statsGrid: {
+  container: { padding: 16, backgroundColor: "#fff" },
+  header: {
     flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  avatar: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#8b5cf6",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  avatarText: { color: "#fff", fontSize: 30, fontWeight: "bold" },
+  profileInfo: { flex: 1 },
+  username: { fontSize: 20, fontWeight: "bold", marginBottom: 2, color: "#374151" },
+  email: { fontSize: 14, color: "#6b7280" },
+  sectionTitle: { fontWeight: "bold", fontSize: 18, marginBottom: 12, color: "#6b21a8" },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "space-between",
-    marginBottom: 24,
+    marginBottom: 16,
   },
   statCard: {
-    flex: 1,
-    marginHorizontal: 4,
+    width: "48%",
     borderRadius: 12,
-    elevation: 2,
-  },
-  statCardContent: {
-    alignItems: "center",
-    padding: 16,
-  },
-  statValue: { fontSize: 28, fontWeight: "bold", color: "#6B21A8" },
-  statLabel: { fontSize: 12, color: "#6B7280", marginTop: 4, textAlign: "center" },
-
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+    paddingVertical: 20,
     marginBottom: 12,
-    color: "#6B21A8",
-  },
-  emptyText: {
-    textAlign: "center",
-    color: "#6B7280",
-    marginBottom: 20,
-  },
-
-  activityItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    padding: 12,
-    backgroundColor: "#F9FAFB",
-    borderRadius: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  activityTitle: { fontSize: 16, fontWeight: "600", color: "#374151" },
-  activityDate: { fontSize: 12, color: "#6B7280", marginTop: 4 },
-
-  buttonContainer: { marginTop: 16 },
-  actionButton: { marginBottom: 12 },
-  logoutButton: { backgroundColor: "#DC2626" },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "#f9f9ff",
     justifyContent: "center",
     alignItems: "center",
   },
-  modalContainer: {
-    backgroundColor: "#FFFFFF",
-    padding: 24,
-    borderRadius: 16,
-    width: "80%",
+  statValue: { fontSize: 20, fontWeight: "bold", color: "#7c3aed", textAlign: "center" },
+  statLabel: { fontSize: 12, color: "#6b7280", marginTop: 6, textAlign: "center" },
+  recentCard: { borderRadius: 12, padding: 16, marginBottom: 16 },
+  emptyText: { color: "#999", textAlign: "center", marginVertical: 12 },
+  activityItem: {
+    flexDirection: "row",
     alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f1f1",
   },
-  modalTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 16 },
-  modalContent: { fontSize: 14, color: "#6B7280", marginBottom: 20, textAlign: "center" },
+  emotionIcon: { fontSize: 24, marginRight: 12 },
+  activityTitle: { fontWeight: "600", fontSize: 15, color: "#374151" },
+  activityDate: { fontSize: 12, color: "#6b7280" },
+  scoreText: { color: "#7c3aed", fontWeight: "600", fontSize: 13 },
+  buttonContainer: { marginTop: 8 },
+  actionButton: { marginBottom: 12 },
+  logoutButton: { backgroundColor: "#dc2626" },
 });

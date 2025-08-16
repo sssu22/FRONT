@@ -8,7 +8,7 @@ export type EmotionType = keyof typeof emotionLabels;
 
 export interface Comment {
   id: number;
-  username?: string; 
+  username?: string;
   time?: string;
   createdAt?: string;
   createAt? : string;
@@ -75,7 +75,7 @@ export interface Trend {
 }
 
 export interface Experience {
-  id: number;
+  id: number; // ✅ string에서 number로 수정하여 타입 통일
   title: string;
   date: string;
   location: string;

@@ -30,11 +30,11 @@ const normalizeComment = (comment: Comment): Comment => {
 };
 
 const CommentItem = ({
-  comment: rawComment,
-  postId,
-  currentUserId,
-  onActionSuccess,
-}: {
+                       comment: rawComment,
+                       postId,
+                       currentUserId,
+                       onActionSuccess,
+                     }: {
   comment: Comment;
   postId: number;
   currentUserId: string | undefined;
@@ -76,50 +76,50 @@ const CommentItem = ({
   };
 
   return (
-    <View style={styles.commentItem}>
-      <Image
-        source={comment.imageUrl ? { uri: comment.imageUrl } : { uri: 'https://placehold.co/64x64/E0E0E0/FFFFFF?text=?' }}
-        style={styles.commentAvatar}
-      />
-      <View style={styles.commentBody}>
-        <View style={styles.commentHeader}>
-          <Text style={styles.commentUsername}>{comment.username || "사용자"}</Text>
-          <Text style={styles.commentTime}>{comment.createdAt}</Text>
-          {isMyComment && (
-            <TouchableOpacity style={styles.commentActionButton} onPress={handleDeleteComment}>
-              <Ionicons name="trash-outline" size={14} color="#E91E63" />
-            </TouchableOpacity>
-          )}
+      <View style={styles.commentItem}>
+        <Image
+            source={comment.imageUrl ? { uri: comment.imageUrl } : { uri: 'https://placehold.co/64x64/E0E0E0/FFFFFF?text=?' }}
+            style={styles.commentAvatar}
+        />
+        <View style={styles.commentBody}>
+          <View style={styles.commentHeader}>
+            <Text style={styles.commentUsername}>{comment.username || "사용자"}</Text>
+            <Text style={styles.commentTime}>{comment.createdAt}</Text>
+            {isMyComment && (
+                <TouchableOpacity style={styles.commentActionButton} onPress={handleDeleteComment}>
+                  <Ionicons name="trash-outline" size={14} color="#E91E63" />
+                </TouchableOpacity>
+            )}
+          </View>
+          <Text style={styles.commentContent}>{comment.content || ""}</Text>
+          <TouchableOpacity style={styles.commentFooter} onPress={handleLikeComment} disabled={isLiking}>
+            <Ionicons
+                name={comment.liked ? "heart" : "heart-outline"}
+                size={16}
+                color={comment.liked ? "#E91E63" : "#999"}
+            />
+            {(comment.likeCount || 0) > 0 && (
+                <Text style={[styles.commentLikes, { color: comment.liked ? "#E91E63" : "#999" }]}>
+                  {comment.likeCount}
+                </Text>
+            )}
+          </TouchableOpacity>
         </View>
-        <Text style={styles.commentContent}>{comment.content || ""}</Text>
-        <TouchableOpacity style={styles.commentFooter} onPress={handleLikeComment} disabled={isLiking}>
-          <Ionicons
-            name={comment.liked ? "heart" : "heart-outline"}
-            size={16}
-            color={comment.liked ? "#E91E63" : "#999"}
-          />
-          {(comment.likeCount || 0) > 0 && (
-            <Text style={[styles.commentLikes, { color: comment.liked ? "#E91E63" : "#999" }]}>
-              {comment.likeCount}
-            </Text>
-          )}
-        </TouchableOpacity>
       </View>
-    </View>
   );
 };
 
 export default function PostDetailScreen({
-  postId,
-  onClose,
-  onTrendPress,
-}: PostDetailScreenProps) {
+                                           postId,
+                                           onClose,
+                                           onTrendPress,
+                                         }: PostDetailScreenProps) {
   const { user } = useGlobalContext();
-  
+
   const [post, setPost] = useState<Experience | null>(null);
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState("");
-  
+
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [isScrapped, setIsScrapped] = useState(false);
@@ -128,7 +128,7 @@ export default function PostDetailScreen({
     try {
       const postData = await postsApi.getById(postId);
       const normalizedComments = (postData.comments || []).map(normalizeComment);
-      
+
       setPost({ ...postData, comments: normalizedComments });
       setLikeCount(postData.likeCount || 0);
       setIsLiked(postData.liked ?? false);
@@ -147,12 +147,12 @@ export default function PostDetailScreen({
 
   const handleLike = async () => {
     if (!post) return;
-    
+
     const originalLiked = isLiked;
     const originalLikeCount = likeCount;
     setIsLiked(!isLiked);
     setLikeCount(isLiked ? likeCount - 1 : likeCount + 1);
-    
+
     try {
       await postsApi.likePost(post.id);
     } catch (error) {
@@ -164,7 +164,7 @@ export default function PostDetailScreen({
 
   const handleScrap = async () => {
     if (!post) return;
-    
+
     const originalScrapped = isScrapped;
     setIsScrapped(!isScrapped);
 
@@ -189,144 +189,150 @@ export default function PostDetailScreen({
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#581c87" />
-      </View>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#581c87" />
+        </View>
     );
   }
 
   if (!post) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>게시글이 없습니다.</Text>
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <Text style={styles.closeButtonText}>닫기</Text>
-        </TouchableOpacity>
-      </View>
+        <View style={styles.centerContainer}>
+          <Text style={styles.errorText}>게시글이 없습니다.</Text>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <Text style={styles.closeButtonText}>닫기</Text>
+          </TouchableOpacity>
+        </View>
     );
   }
 
   const dateToDisplay = post.experienceDate || post.date;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={0}
-    >
-      <View style={styles.navBar}>
-        <TouchableOpacity onPress={onClose} style={styles.navButton}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.navTitle}>경험 상세</Text>
-        <TouchableOpacity style={styles.navButton}>
-          <Ionicons name="share-social-outline" size={24} color="#333" />
-        </TouchableOpacity>
-      </View>
+      <KeyboardAvoidingView
+          style={styles.container}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={0}
+      >
+        <View style={styles.navBar}>
+          <View style={styles.navBarSide}>
+            <TouchableOpacity onPress={onClose} style={styles.navButton}>
+              <Ionicons name="arrow-back" size={24} color="#333" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.navBarTitleContainer}>
+            <Text style={styles.navTitle} numberOfLines={1}>경험 상세</Text>
+          </View>
+          <View style={styles.navBarSide}>
+            <TouchableOpacity style={styles.navButton}>
+              <Ionicons name="share-social-outline" size={24} color="#333" />
+            </TouchableOpacity>
+          </View>
+        </View>
 
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.emotion}>
-            {emotionIcons[post.emotion.toLowerCase()] || "🤔"}
-          </Text>
-          <Text style={styles.title}>{post.title}</Text>
-          <View style={styles.metaContainer}>
-            <Text style={styles.metaText}>
-              {new Date(dateToDisplay).toLocaleDateString("ko-KR", {
-                year: "numeric", month: "long", day: "numeric",
-              })}
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+          <View style={styles.header}>
+            <Text style={styles.emotion}>
+              {emotionIcons[post.emotion.toLowerCase()] || "🤔"}
             </Text>
-            <Text style={styles.metaSeparator}>•</Text>
-            <Text style={styles.metaText}>{post.location}</Text>
+            <Text style={styles.title}>{post.title}</Text>
+            <View style={styles.metaContainer}>
+              <Text style={styles.metaText}>
+                {new Date(dateToDisplay).toLocaleDateString("ko-KR", {
+                  year: "numeric", month: "long", day: "numeric",
+                })}
+              </Text>
+              <Text style={styles.metaSeparator}>•</Text>
+              <Text style={styles.metaText}>{post.location}</Text>
+            </View>
           </View>
-        </View>
 
-        <View style={styles.statsContainer}>
-          <TouchableOpacity style={styles.statItem} onPress={handleLike}>
-            <Ionicons name={isLiked ? "heart" : "heart-outline"} size={16} color={isLiked ? "#E91E63" : "#666"} />
-            <Text style={[styles.statText, { color: isLiked ? "#E91E63" : "#333" }]}>
-              {likeCount.toLocaleString()}
-            </Text>
-          </TouchableOpacity>
-          <View style={styles.statItem}>
-            <Ionicons name="chatbubble-outline" size={16} color="#666" />
-            <Text style={styles.statText}>{(post.comments?.length || 0).toLocaleString()}</Text>
+          <View style={styles.statsContainer}>
+            <TouchableOpacity style={styles.statItem} onPress={handleLike}>
+              <Ionicons name={isLiked ? "heart" : "heart-outline"} size={16} color={isLiked ? "#E91E63" : "#666"} />
+              <Text style={[styles.statText, { color: isLiked ? "#E91E63" : "#333" }]}>
+                {likeCount.toLocaleString()}
+              </Text>
+            </TouchableOpacity>
+            <View style={styles.statItem}>
+              <Ionicons name="chatbubble-outline" size={16} color="#666" />
+              <Text style={styles.statText}>{(post.comments?.length || 0).toLocaleString()}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Ionicons name="eye-outline" size={16} color="#666" />
+              <Text style={styles.statText}>{(post.viewCount || 0).toLocaleString()}</Text>
+            </View>
+            <View style={{ flex: 1 }} />
+            <TouchableOpacity onPress={handleScrap}>
+              <Ionicons name={isScrapped ? "bookmark" : "bookmark-outline"} size={20} color={isScrapped ? "#FFC107" : "#666"} />
+            </TouchableOpacity>
           </View>
-          <View style={styles.statItem}>
-            <Ionicons name="eye-outline" size={16} color="#666" />
-            <Text style={styles.statText}>{(post.viewCount || 0).toLocaleString()}</Text>
-          </View>
-          <View style={{ flex: 1 }} />
-          <TouchableOpacity onPress={handleScrap}>
-            <Ionicons name={isScrapped ? "bookmark" : "bookmark-outline"} size={20} color={isScrapped ? "#FFC107" : "#666"} />
-          </TouchableOpacity>
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>경험 이야기</Text>
-          <Text style={styles.description}>{post.description}</Text>
-        </View>
-
-        {post.tags && post.tags.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>태그</Text>
-            <View style={styles.tagsContainer}>
-              {post.tags.map((tag, index) => (
-                <View key={index} style={styles.tag}>
-                  <Text style={styles.tagText}>#{tag}</Text>
-                </View>
-              ))}
-            </View>
+            <Text style={styles.sectionTitle}>경험 이야기</Text>
+            <Text style={styles.description}>{post.description}</Text>
           </View>
-        )}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>연관 트렌드</Text>
+          {post.tags && post.tags.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>태그</Text>
+                <View style={styles.tagsContainer}>
+                  {post.tags.map((tag, index) => (
+                      <View key={index} style={styles.tag}>
+                        <Text style={styles.tagText}>#{tag}</Text>
+                      </View>
+                  ))}
+                </View>
+              </View>
+          )}
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>연관 트렌드</Text>
+            <TouchableOpacity
+                style={styles.trendContainer}
+                onPress={() => onTrendPress(post.trendId)}
+            >
+              <Text style={styles.trendName}>{post.trendName}</Text>
+              <Text style={styles.trendScore}>{post.trendScore}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>댓글 ({(post.comments?.length || 0)})</Text>
+            {post.comments && post.comments.length > 0 ? (
+                post.comments.map((c) => (
+                    <CommentItem
+                        key={String(c.id || c.commentId)}
+                        comment={c}
+                        postId={post.id}
+                        currentUserId={user?.id}
+                        onActionSuccess={fetchPostDetail}
+                    />
+                ))
+            ) : (
+                <View style={styles.commentPlaceholder}>
+                  <Text style={styles.commentPlaceholderText}>작성된 댓글이 없습니다.</Text>
+                </View>
+            )}
+          </View>
+        </ScrollView>
+
+        <View style={styles.commentInputContainer}>
+          <TextInput
+              style={styles.commentInput}
+              placeholder="댓글을 입력하세요..."
+              value={newComment}
+              onChangeText={setNewComment}
+              multiline
+          />
           <TouchableOpacity
-            style={styles.trendContainer}
-            onPress={() => onTrendPress(post.trendId)}
+              style={styles.commentSubmitButton}
+              onPress={handleCommentSubmit}
           >
-            <Text style={styles.trendName}>{post.trendName}</Text>
-            <Text style={styles.trendScore}>{post.trendScore}</Text>
+            <Ionicons name="send" size={20} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>댓글 ({(post.comments?.length || 0)})</Text>
-          {post.comments && post.comments.length > 0 ? (
-            post.comments.map((c) => (
-              <CommentItem
-                key={String(c.id || c.commentId)}
-                comment={c}
-                postId={post.id}
-                currentUserId={user?.id}
-                onActionSuccess={fetchPostDetail}
-              />
-            ))
-          ) : (
-            <View style={styles.commentPlaceholder}>
-              <Text style={styles.commentPlaceholderText}>작성된 댓글이 없습니다.</Text>
-            </View>
-          )}
-        </View>
-      </ScrollView>
-
-      <View style={styles.commentInputContainer}>
-        <TextInput
-          style={styles.commentInput}
-          placeholder="댓글을 입력하세요..."
-          value={newComment}
-          onChangeText={setNewComment}
-          multiline
-        />
-        <TouchableOpacity
-          style={styles.commentSubmitButton}
-          onPress={handleCommentSubmit}
-        >
-          <Ionicons name="send" size={20} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
   );
 }
 
@@ -336,9 +342,32 @@ const styles = StyleSheet.create({
   errorText: { fontSize: 16, color: "#333", textAlign: "center" },
   closeButton: { marginTop: 20, backgroundColor: "#581c87", paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
   closeButtonText: { color: "white", fontWeight: "bold" },
-  navBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", height: 56, paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: "#F0F0F0" },
-  navButton: { padding: 8 },
-  navTitle: { fontSize: 18, fontWeight: "600", color: "#333" },
+  navBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 56,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+  },
+  navBarSide: {
+    width: 60,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  navBarTitleContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  navTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+  },
+  navButton: {
+    padding: 8,
+  },
   header: { backgroundColor: "#00C2FF", padding: 24, alignItems: "center" },
   emotion: { fontSize: 48, marginBottom: 16 },
   title: { fontSize: 24, fontWeight: "bold", color: "#FFFFFF", textAlign: "center", marginBottom: 8 },

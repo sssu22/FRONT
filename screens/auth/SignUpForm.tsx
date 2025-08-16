@@ -54,8 +54,8 @@ export default function SignupForm({ onSignup, onShowLogin, onBack }: SignupForm
       return;
     }
 
-    if (formData.password.length < 6) {
-      setError("비밀번호는 최소 6자 이상이어야 합니다.");
+    if (formData.password.length < 8) {
+      setError("비밀번호는 최소 8자 이상이어야 합니다.");
       setIsLoading(false);
       return;
     }
@@ -160,7 +160,7 @@ export default function SignupForm({ onSignup, onShowLogin, onBack }: SignupForm
               <MaterialIcons name="lock-outline" size={20} color="#bbb" style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, { paddingLeft: 38, paddingRight: 38 }]}
-                placeholder="비밀번호 (최소 6자)"
+                placeholder="비밀번호 (영문,숫자,특수문자 포함 8~20자)"
                 secureTextEntry={!showPassword}
                 value={formData.password}
                 onChangeText={(v) => setFormData({ ...formData, password: v })}

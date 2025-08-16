@@ -13,26 +13,17 @@ import SignUpForm from "./screens/auth/SignUpForm";
 import ResetPasswordForm from "./screens/auth/ResetPasswordForm";
 import ResetConfirmForm from "./screens/auth/ResetConfirmForm";
 
-// ✅ 탭 컴포넌트 import 경로 수정
 import HomeTab from "./screens/HomeTab";
 import TrendsTab from "./screens/TrendsTab";
 import MyPostsTab from "./screens/MyPostsTab";
 import ProfileTab from "./screens/ProfileTab";
-import ScrapView from "./screens/ScrapView"; // 스크랩 화면 import 추가
+import ScrapView from "./screens/ScrapView";
 
 import { Experience, User } from "./types";
 import { GlobalProvider, useGlobalContext } from "./GlobalContext";
 
 type TabType = "홈" | "트렌드" | "내 게시물" | "프로필";
 type AuthScreen = "welcome" | "login" | "signup" | "resetPassword" | "resetConfirm";
-
-// ✅ Mock 데이터 추가 (ProfileTab에 필요)
-const mockUserActivity = {
-  views: ['post1', 'post2', 'post3'],
-  searches: ['맛집', '여행'],
-  trendViews: ['trend1', 'trend2'],
-  categoryInterests: { '음식': 5, '라이프스타일': 3 },
-};
 
 export default function App() {
   return (
@@ -59,12 +50,16 @@ function AppContent() {
     showForm, setShowForm, editingExperience, setEditingExperience,
     selectedPostId, setSelectedPostId,
     selectedTrendId, setSelectedTrendId,
+    scrappedPosts, scrappedTrends,
+    togglePostScrap, toggleTrendScrap,
   } = useGlobalContext();
 
   const [authScreen, setAuthScreen] = useState<AuthScreen>("welcome");
   const [activeTab, setActiveTab] = useState<TabType>("홈");
   const [searchQuery, setSearchQuery] = useState("");
-  const [showScraps, setShowScraps] = useState(false); // ✅ 스크랩 화면 표시 상태
+  const [showScraps, setShowScraps] = useState(false);
+
+  const scrappedCount = (scrappedPosts?.size || 0) + (scrappedTrends?.size || 0);
 
   const handleExperienceClick = useCallback((exp: Experience) => {
     setSelectedPostId(exp.id);
@@ -139,54 +134,31 @@ function AppContent() {
     );
   }
 
+  // 👇 로그인 되어 있지 않을 때의 화면 전환 로직을 switch 문으로 변경
   if (!user) {
-    if (authScreen === "login") return <LoginForm onLogin={handleLogin} onShowSignup={() => setAuthScreen("signup")} onBack={() => setAuthScreen("welcome")} onShowResetPassword={() => setAuthScreen("resetPassword")} />;
-    if (authScreen === "signup") return <SignUpForm onSignup={handleSignup} onShowLogin={() => setAuthScreen("login")} onBack={() => setAuthScreen("welcome")} />;
-    if (authScreen === 'resetPassword') return <ResetPasswordForm onBack={() => setAuthScreen('login')} />;
-    if (authScreen === 'resetConfirm') return <ResetConfirmForm onBack={() => setAuthScreen('resetPassword')} onComplete={() => setAuthScreen('login')} />;
-    return <WelcomeScreen onShowLogin={() => setAuthScreen("login")} onShowSignup={() => setAuthScreen("signup")} />;
+    switch (authScreen) {
+      case "login":
+        return <LoginForm onLogin={handleLogin} onShowSignup={() => setAuthScreen("signup")} onBack={() => setAuthScreen("welcome")} onShowResetPassword={() => setAuthScreen("resetPassword")} />;
+      case "signup":
+        return <SignUpForm onSignup={handleSignup} onShowLogin={() => setAuthScreen("login")} onBack={() => setAuthScreen("welcome")} />;
+      case "resetPassword":
+        return <ResetPasswordForm onBack={() => setAuthScreen("login")} />;
+      case "welcome":
+      default:
+        return <WelcomeScreen onShowLogin={() => setAuthScreen("login")} onShowSignup={() => setAuthScreen("signup")} />;
+    }
   }
 
   const renderTabContent = () => {
     switch (activeTab) {
       case "홈":
-        // ✅ HomeTab에 필요한 props 전달
-        return (
-            <HomeTab
-                experiences={experiences as any} // id 타입이 string으로 되어있어 임시로 any 처리
-                onExperienceClick={handleExperienceClick}
-                searchQuery={searchQuery}
-            />
-        );
+        return <HomeTab onExperienceClick={handleExperienceClick} searchQuery={searchQuery} />;
       case "트렌드":
-        return (
-            <TrendsTab
-                searchQuery={searchQuery}
-                onTrendView={(trendId) => setSelectedTrendId(trendId)}
-            />
-        );
+        return <TrendsTab searchQuery={searchQuery} onTrendView={(trendId) => setSelectedTrendId(trendId)} />;
       case "내 게시물":
-        return (
-            <MyPostsTab
-                onExperienceClick={handleExperienceClick}
-                onEditExperience={handleEditClick}
-                onDeleteExperience={handleDeleteExperience}
-                searchQuery={searchQuery}
-            />
-        );
+        return <MyPostsTab onExperienceClick={handleExperienceClick} onEditExperience={handleEditClick} onDeleteExperience={handleDeleteExperience} searchQuery={searchQuery} />;
       case "프로필":
-        // ✅ ProfileTab에 필요한 props 전달
-        return (
-            <ProfileTab
-                experiences={experiences as any} // id 타입이 string으로 되어있어 임시로 any 처리
-                onExperienceClick={handleExperienceClick}
-                onLogout={handleLogout}
-                onShowScraps={() => setShowScraps(true)}
-                user={user as User}
-                scrappedCount={10} // 임시 데이터
-                userActivity={mockUserActivity} // 임시 데이터
-            />
-        );
+        return <ProfileTab experiences={experiences} onExperienceClick={handleExperienceClick} onLogout={handleLogout} onShowScraps={() => setShowScraps(true)} user={user} scrappedCount={scrappedCount} />;
       default:
         return null;
     }
@@ -242,7 +214,6 @@ function AppContent() {
           })}
         </View>
 
-        {/* Modals */}
         <Modal visible={showForm} animationType="slide" onRequestClose={() => { setShowForm(false); setEditingExperience(null); }}>
           <CreateEditPostScreen
               onSubmit={(payload) => { editingExperience ? handleUpdateExperience(payload) : handleAddExperience(payload); }}
@@ -265,15 +236,18 @@ function AppContent() {
           )}
         </Modal>
 
-        {/* ✅ 스크랩 화면 모달 추가 */}
         <Modal visible={showScraps} animationType="slide" onRequestClose={() => setShowScraps(false)}>
           <ScrapView
-              experiences={experiences as any}
-              scrappedExperiences={['5', '7']} // 임시 데이터
-              scrappedTrends={['1', '3']} // 임시 데이터
-              onExperienceClick={handleExperienceClick}
-              onToggleExperienceScrap={() => {}} // 임시 함수
-              onToggleTrendScrap={() => {}} // 임시 함수
+              onExperienceClick={(exp) => {
+                setShowScraps(false);
+                handleExperienceClick(exp);
+              }}
+              onTrendClick={(trendId) => {
+                setShowScraps(false);
+                setSelectedTrendId(trendId);
+              }}
+              onToggleExperienceScrap={togglePostScrap}
+              onToggleTrendScrap={toggleTrendScrap}
               onClose={() => setShowScraps(false)}
           />
         </Modal>
@@ -283,48 +257,14 @@ function AppContent() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F9FAFB" },
-  header: {
-    flexDirection: "row",
-    padding: 16,
-    backgroundColor: "#FFF",
-    borderBottomWidth: 1,
-    borderColor: "#E5E7EB",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
+  header: { flexDirection: "row", padding: 16, backgroundColor: "#FFF", borderBottomWidth: 1, borderColor: "#E5E7EB", alignItems: "center", justifyContent: "space-between", },
   appTitle: { fontSize: 20, fontWeight: "bold", color: "#7C3AED" },
   greeting: { fontSize: 14, color: "#6B7280" },
   addButton: { backgroundColor: "#7C3AED", padding: 8, borderRadius: 8 },
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: "#FFF",
-    borderBottomWidth: 1,
-    borderColor: "#E5E7EB",
-  },
+  searchContainer: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 8, backgroundColor: "#FFF", borderBottomWidth: 1, borderColor: "#E5E7EB", },
   searchInput: { flex: 1, marginLeft: 8, fontSize: 16 },
   mainContent: { flex: 1 },
-  bottomNav: {
-    flexDirection: "row",
-    borderTopWidth: 1,
-    borderColor: "#E5E7EB",
-    backgroundColor: "#FFF",
-    paddingVertical: 8,
-  },
+  bottomNav: { flexDirection: "row", borderTopWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#FFF", paddingVertical: 8, },
   navButton: { flex: 1, alignItems: "center" },
   navLabel: { fontSize: 10, fontWeight: "500", marginTop: 4 },
-  homeCard: {
-    padding: 12,
-    backgroundColor: "#F3F4F6",
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  logoutButton: {
-    backgroundColor: "#EF4444",
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 12,
-  },
 });

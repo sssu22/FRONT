@@ -16,9 +16,11 @@ import {
 import { Button, Avatar } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { usersApi } from "../utils/apiUtils"; // apiUtils import 추가
+
 
 /** ✅ 바꿔 써야 하는 부분: 백엔드 주소/엔드포인트 */
-const API_BASE = "https://your-api.example.com"; // TODO: 실제 API 주소로 교체
+const API_BASE = "http://34.219.161.217:8080/api/v1"; // TODO: 실제 API 주소로 교체
 
 interface ProfileEditProps {
   onClose: () => void;
@@ -44,9 +46,23 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
   const [confirmText, setConfirmText] = useState("");
   const [delLoading, setDelLoading] = useState(false);
 
-  const handleSave = () => {
-    alert("변경사항이 저장되었습니다!");
-    onClose();
+  const handleSave = async () => {
+    try {
+      const updatedProfileData = {
+        name: username,
+        address: location,
+        stateMessage: bio,
+        locationTracing: allowLocation,
+      };
+
+      await usersApi.updateMe(updatedProfileData);
+
+      Alert.alert("성공", "프로필 정보가 성공적으로 업데이트되었습니다.");
+      onClose();
+    } catch (error) {
+      console.error("프로필 업데이트 실패:", error);
+      Alert.alert("오류", "프로필 업데이트에 실패했습니다. 다시 시도해주세요.");
+    }
   };
 
   /** ▼▼ 추가: 공통 토큰 가져오기 */
@@ -90,23 +106,11 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
 
     setPwLoading(true);
     try {
-      const token = await getToken();
-      const res = await fetch(`${API_BASE}/auth/password`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          currentPassword,
-          newPassword,
-        }),
+      // ✅ usersApi.changePassword 함수 호출
+      await usersApi.changePassword({
+        currentPassword: currentPassword,
+        newPassword: newPassword,
       });
-
-      if (!res.ok) {
-        const msg = await safeMsg(res);
-        throw new Error(msg || `변경 실패 (code: ${res.status})`);
-      }
 
       Alert.alert("완료", "비밀번호가 변경되었습니다.");
       setPwModalVisible(false);
@@ -114,7 +118,8 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
       setNewPassword("");
       setNewPassword2("");
     } catch (e: any) {
-      Alert.alert("오류", e?.message ?? "비밀번호 변경 중 문제가 발생했습니다.");
+      const errorMessage = e.response?.data?.message || e.message || "비밀번호 변경 중 문제가 발생했습니다.";
+      Alert.alert("오류", errorMessage);
     } finally {
       setPwLoading(false);
     }
@@ -144,29 +149,19 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
   const actuallyDelete = async () => {
     setDelLoading(true);
     try {
-      const token = await getToken();
-      const res = await fetch(`${API_BASE}/users/me`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-
-      if (!res.ok) {
-        const msg = await safeMsg(res);
-        throw new Error(msg || `삭제 실패 (code: ${res.status})`);
-      }
+      // ✅ usersApi.deleteAccount 함수 호출
+      await usersApi.deleteAccount();
 
       // 로컬 토큰/프로필 정리
-      await AsyncStorage.multiRemove(["authToken", "accessToken", "user", "profile"]);
+      await AsyncStorage.multiRemove(["authToken", "accessToken", "user", "profile", "TrendLog-token", "TrendLog-refresh"]);
 
       setDelModalVisible(false);
       setConfirmText("");
       Alert.alert("계정 삭제됨", "이용해 주셔서 감사합니다.");
-      onClose(); // 기존 흐름 유지: 닫기
+      onClose();
     } catch (e: any) {
-      Alert.alert("오류", e?.message ?? "계정 삭제 중 문제가 발생했습니다.");
+      const errorMessage = e.response?.data?.message || e.message || "계정 삭제 중 문제가 발생했습니다.";
+      Alert.alert("오류", errorMessage);
     } finally {
       setDelLoading(false);
     }

@@ -1,5 +1,6 @@
-// ProfileTab.tsx
-import React, { useState } from "react";
+// sssu22/front/FRONT-feature-3/screens/ProfileTab.tsx
+
+import React, { useState } from "react"; // ✅ 'inport'를 'import'로 수정했습니다.
 import {
   View,
   Text,
@@ -12,56 +13,19 @@ import {
 import { Card, Button, IconButton } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import ProfileEdit from "./ProfileEdit";
-
-type EmotionType =
-    | "joy"
-    | "excitement"
-    | "nostalgia"
-    | "surprise"
-    | "love"
-    | "regret"
-    | "sadness"
-    | "irritation"
-    | "anger"
-    | "embarrassment";
+import { Experience, User, EmotionType } from "../types";
 
 const emotionIcons: Record<EmotionType, string> = {
-  joy: "😊",
-  excitement: "🔥",
-  nostalgia: "💭",
-  surprise: "😲",
-  love: "💖",
-  regret: "😞",
-  sadness: "😢",
-  irritation: "😒",
-  anger: "😡",
-  embarrassment: "😳",
+  joy: "😊", excitement: "🔥", nostalgia: "💭", surprise: "😲", love: "💖",
+  regret: "😞", sadness: "😢", irritation: "😒", anger: "😡", embarrassment: "😳",
 };
-
-interface Experience {
-  id: string;
-  title: string;
-  date: string;
-  location: string;
-  emotion: EmotionType;
-  tags: string[];
-  description: string;
-  trendScore: number;
-}
-
-interface UserType {
-  id: string;
-  email: string;
-  name: string;
-  avatar?: string;
-}
 
 interface ProfileTabProps {
   experiences: Experience[];
   onExperienceClick: (exp: Experience) => void;
   onLogout: () => void;
   onShowScraps: () => void;
-  user: UserType;
+  user: User | null;
   scrappedCount: number;
 }
 
@@ -75,6 +39,11 @@ export default function ProfileTab({
                                    }: ProfileTabProps) {
   const [showProfileEdit, setShowProfileEdit] = useState(false);
 
+  // user 객체가 없을 때 에러가 나지 않도록 방어 코드를 추가합니다.
+  if (!user) {
+    return null;
+  }
+
   const totalTrendScore = experiences.reduce((sum, e) => sum + e.trendScore, 0);
   const avgTrendScore = experiences.length
       ? Math.round(totalTrendScore / experiences.length)
@@ -83,11 +52,10 @@ export default function ProfileTab({
 
   return (
       <ScrollView contentContainerStyle={styles.container}>
-        {/* 프로필 헤더 */}
         <View style={styles.header}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
-              {user.avatar ? "👤" : user.name.charAt(0).toUpperCase()}
+              {user.profileImageUrl ? "👤" : user.name.charAt(0).toUpperCase()}
             </Text>
           </View>
           <View style={styles.profileInfo}>
@@ -101,7 +69,6 @@ export default function ProfileTab({
           />
         </View>
 
-        {/* 활동 요약 */}
         <Text style={styles.sectionTitle}>내 활동 요약</Text>
         <View style={styles.grid}>
           <Card style={styles.statCard}>
@@ -122,7 +89,6 @@ export default function ProfileTab({
           </Card>
         </View>
 
-        {/* 최근 활동 */}
         <Card style={styles.recentCard}>
           <Text style={styles.sectionTitle}>최근 활동</Text>
           {experiences.length === 0 ? (
@@ -147,7 +113,6 @@ export default function ProfileTab({
           )}
         </Card>
 
-        {/* 하단 버튼 */}
         <View style={styles.buttonContainer}>
           <Button mode="outlined" onPress={onShowScraps} style={styles.actionButton}>
             스크랩 보기
@@ -164,7 +129,6 @@ export default function ProfileTab({
           </Button>
         </View>
 
-        {/* 모달: 프로필 편집 */}
         <Modal
             visible={showProfileEdit}
             onRequestClose={() => setShowProfileEdit(false)}
@@ -180,51 +144,20 @@ export default function ProfileTab({
 
 const styles = StyleSheet.create({
   container: { padding: 16, backgroundColor: "#fff" },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: "#8b5cf6",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
-  },
+  header: { flexDirection: "row", alignItems: "center", marginBottom: 16, },
+  avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: "#8b5cf6", justifyContent: "center", alignItems: "center", marginRight: 16, },
   avatarText: { color: "#fff", fontSize: 30, fontWeight: "bold" },
   profileInfo: { flex: 1 },
   username: { fontSize: 20, fontWeight: "bold", marginBottom: 2, color: "#374151" },
   email: { fontSize: 14, color: "#6b7280" },
   sectionTitle: { fontWeight: "bold", fontSize: 18, marginBottom: 12, color: "#6b21a8" },
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
-  statCard: {
-    width: "48%",
-    borderRadius: 12,
-    paddingVertical: 20,
-    marginBottom: 12,
-    backgroundColor: "#f9f9ff",
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginBottom: 16, },
+  statCard: { width: "48%", borderRadius: 12, paddingVertical: 20, marginBottom: 12, backgroundColor: "#f9f9ff", justifyContent: "center", alignItems: "center", },
   statValue: { fontSize: 20, fontWeight: "bold", color: "#7c3aed", textAlign: "center" },
   statLabel: { fontSize: 12, color: "#6b7280", marginTop: 6, textAlign: "center" },
   recentCard: { borderRadius: 12, padding: 16, marginBottom: 16 },
   emptyText: { color: "#999", textAlign: "center", marginVertical: 12 },
-  activityItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f1f1f1",
-  },
+  activityItem: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f1f1", },
   emotionIcon: { fontSize: 24, marginRight: 12 },
   activityTitle: { fontWeight: "600", fontSize: 15, color: "#374151" },
   activityDate: { fontSize: 12, color: "#6b7280" },

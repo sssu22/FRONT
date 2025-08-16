@@ -1,57 +1,57 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=34bb066fa35861f283d741758f61344f&libraries=clusterer"></script>
-    <style>
-      html, body { 
-        margin: 0; 
-        padding: 0; 
-        width: 100%; 
-        height: 100%; 
-      }
-      #map { 
-        width: 100%; 
-        height: 100%; 
-        background-color: #f0f0f0;
-      }
-      #debug {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        background: rgba(0,0,0,0.7);
-        color: white;
-        padding: 10px;
-        border-radius: 5px;
-        font-size: 12px;
-        max-width: 200px;
-        z-index: 1000;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="debug">로딩 중...</div>
-    <div id="map"></div>
-    <script>
-      const debugDiv = document.getElementById('debug');
-      
-      function log(message) {
-        console.log(message);
-        debugDiv.innerHTML += '<br>' + message;
-      }
-      
-      log('스크립트 시작');
-      
-      // Kakao 객체 확인
-      if (typeof kakao === 'undefined') {
-        log('❌ Kakao 객체 없음');
-        debugDiv.innerHTML = '❌ 카카오 API 로드 실패<br>네트워크 연결을 확인하세요';
-        // 카카오 API 없이 기본 지도 표시
-        document.getElementById('map').innerHTML = `
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=34bb066fa35861f283d741758f61344f&libraries=clusterer"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+    }
+    #map {
+      width: 100%;
+      height: 100%;
+      background-color: #f0f0f0;
+    }
+    #debug {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 12px;
+      max-width: 200px;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+<div id="debug">로딩 중...</div>
+<div id="map"></div>
+<script>
+  const debugDiv = document.getElementById('debug');
+
+  function log(message) {
+    console.log(message);
+    debugDiv.innerHTML += '<br>' + message;
+  }
+
+  log('스크립트 시작');
+
+  // Kakao 객체 확인
+  if (typeof kakao === 'undefined') {
+    log('❌ Kakao 객체 없음');
+    debugDiv.innerHTML = '❌ 카카오 API 로드 실패<br>네트워크 연결을 확인하세요';
+    // 카카오 API 없이 기본 지도 표시
+    document.getElementById('map').innerHTML = `
           <div style="
-            width: 100%; 
-            height: 100%; 
+            width: 100%;
+            height: 100%;
             background: linear-gradient(45deg, #e3f2fd, #bbdefb);
             display: flex;
             align-items: center;
@@ -64,111 +64,111 @@
             <p style="font-size: 12px;">네트워크 연결을 확인하세요</p>
           </div>
         `;
-      } else {
-        log('✅ Kakao 객체 존재');
-        
+  } else {
+    log('✅ Kakao 객체 존재');
+
+    try {
+      const mapContainer = document.getElementById('map');
+      log('✅ 지도 컨테이너 찾음');
+
+      const mapOptions = {
+        center: new kakao.maps.LatLng(37.5665, 126.9780),
+        level: 7,
+      };
+      log('✅ 지도 옵션 설정');
+
+      const map = new kakao.maps.Map(mapContainer, mapOptions);
+      log('✅ 지도 생성 완료');
+
+      // 3초 후 디버그 메시지 숨기기
+      setTimeout(() => {
+        debugDiv.style.display = 'none';
+      }, 3000);
+
+      let clusterer = null;
+
+      // React Native WebView에서 메시지 받기
+      window.addEventListener("message", function (event) {
         try {
-          const mapContainer = document.getElementById('map');
-          log('✅ 지도 컨테이너 찾음');
-          
-          const mapOptions = {
-            center: new kakao.maps.LatLng(37.5665, 126.9780),
-            level: 7,
-          };
-          log('✅ 지도 옵션 설정');
-          
-          const map = new kakao.maps.Map(mapContainer, mapOptions);
-          log('✅ 지도 생성 완료');
-          
-          // 3초 후 디버그 메시지 숨기기
-          setTimeout(() => {
-            debugDiv.style.display = 'none';
-          }, 3000);
-          
-          let clusterer = null;
+          log('📨 메시지 받음: ' + event.data);
+          const data = JSON.parse(event.data);
+          const positions = data.positions;
 
-          // React Native WebView에서 메시지 받기
-          window.addEventListener("message", function (event) {
-            try {
-              log('📨 메시지 받음: ' + event.data);
-              const data = JSON.parse(event.data);
-              const positions = data.positions;
-              
-              if (!positions || !Array.isArray(positions)) {
-                log('❌ 위치 데이터가 배열이 아님');
-                return;
-              }
+          if (!positions || !Array.isArray(positions)) {
+            log('❌ 위치 데이터가 배열이 아님');
+            return;
+          }
 
-              // 기존 클러스터러가 있다면 제거
-              if (clusterer) {
-                clusterer.clear();
-                log('🗑️ 기존 클러스터러 제거');
-              }
+          // 기존 클러스터러가 있다면 제거
+          if (clusterer) {
+            clusterer.clear();
+            log('🗑️ 기존 클러스터러 제거');
+          }
 
-              // 새 클러스터러 생성
-              clusterer = new kakao.maps.MarkerClusterer({
-                map: map,
-                averageCenter: true,
-                minLevel: 6,
-              });
-              log('🔗 새 클러스터러 생성');
-
-              // 유효한 위치 데이터만 필터링
-              const validPositions = positions.filter(pos => 
-                pos.lat && pos.lng && pos.lat !== 0 && pos.lng !== 0
-              );
-              
-              log('📍 유효한 위치: ' + validPositions.length + '개');
-
-              if (validPositions.length === 0) {
-                log('⚠️ 표시할 위치 데이터 없음');
-                return;
-              }
-
-              const markers = validPositions.map(pos => {
-                const marker = new kakao.maps.Marker({
-                  position: new kakao.maps.LatLng(pos.lat, pos.lng)
-                });
-
-                // 마커 클릭 이벤트
-                kakao.maps.event.addListener(marker, 'click', function () {
-                  log('🖱️ 마커 클릭: ' + pos.district);
-                  if (window.ReactNativeWebView) {
-                    window.ReactNativeWebView.postMessage(
-                      JSON.stringify({ district: pos.district })
-                    );
-                  }
-                });
-
-                return marker;
-              });
-
-              // 마커들을 클러스터러에 추가
-              clusterer.addMarkers(markers);
-              log('✅ 마커 ' + markers.length + '개 추가');
-
-              // 지도 중심을 첫 번째 마커로 이동
-              if (validPositions.length > 0) {
-                const firstPos = validPositions[0];
-                map.setCenter(new kakao.maps.LatLng(firstPos.lat, firstPos.lng));
-                log('🎯 지도 중심 이동');
-              }
-
-            } catch (error) {
-              log('❌ 메시지 처리 에러: ' + error.message);
-              console.error('메시지 처리 중 오류:', error);
-            }
+          // 새 클러스터러 생성
+          clusterer = new kakao.maps.MarkerClusterer({
+            map: map,
+            averageCenter: true,
+            minLevel: 6,
           });
-          
+          log('🔗 새 클러스터러 생성');
+
+          // 유효한 위치 데이터만 필터링
+          const validPositions = positions.filter(pos =>
+                  pos.lat && pos.lng && pos.lat !== 0 && pos.lng !== 0
+          );
+
+          log('📍 유효한 위치: ' + validPositions.length + '개');
+
+          if (validPositions.length === 0) {
+            log('⚠️ 표시할 위치 데이터 없음');
+            return;
+          }
+
+          const markers = validPositions.map(pos => {
+            const marker = new kakao.maps.Marker({
+              position: new kakao.maps.LatLng(pos.lat, pos.lng)
+            });
+
+            // 마커 클릭 이벤트
+            kakao.maps.event.addListener(marker, 'click', function () {
+              log('🖱️ 마커 클릭: ' + pos.district);
+              if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage(
+                        JSON.stringify({ district: pos.district })
+                );
+              }
+            });
+
+            return marker;
+          });
+
+          // 마커들을 클러스터러에 추가
+          clusterer.addMarkers(markers);
+          log('✅ 마커 ' + markers.length + '개 추가');
+
+          // 지도 중심을 첫 번째 마커로 이동
+          if (validPositions.length > 0) {
+            const firstPos = validPositions[0];
+            map.setCenter(new kakao.maps.LatLng(firstPos.lat, firstPos.lng));
+            log('🎯 지도 중심 이동');
+          }
+
         } catch (error) {
-          log('❌ 지도 초기화 실패: ' + error.message);
-          console.error('지도 초기화 실패:', error);
-          
-          // 에러 시 기본 지도 표시
-          document.getElementById('map').innerHTML = `
+          log('❌ 메시지 처리 에러: ' + error.message);
+          console.error('메시지 처리 중 오류:', error);
+        }
+      });
+
+    } catch (error) {
+      log('❌ 지도 초기화 실패: ' + error.message);
+      console.error('지도 초기화 실패:', error);
+
+      // 에러 시 기본 지도 표시
+      document.getElementById('map').innerHTML = `
             <div style="
-              width: 100%; 
-              height: 100%; 
+              width: 100%;
+              height: 100%;
               background: #ffcdd2;
               display: flex;
               align-items: center;
@@ -180,8 +180,8 @@
               <p>${error.message}</p>
             </div>
           `;
-        }
-      }
-    </script>
-  </body>
+    }
+  }
+</script>
+</body>
 </html>

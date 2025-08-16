@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  SafeAreaView, // SafeAreaView import 추가
 } from "react-native";
 import { Card, IconButton, Chip } from "react-native-paper";
 
@@ -112,14 +113,14 @@ const allTrends: Trend[] = [
 ];
 
 export default function ScrapScreen({
-  experiences,
-  scrappedExperiences,
-  scrappedTrends,
-  onExperienceClick,
-  onToggleExperienceScrap,
-  onToggleTrendScrap,
-  onClose,
-}: ScrapScreenProps) {
+                                      experiences,
+                                      scrappedExperiences,
+                                      scrappedTrends,
+                                      onExperienceClick,
+                                      onToggleExperienceScrap,
+                                      onToggleTrendScrap,
+                                      onClose,
+                                    }: ScrapScreenProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [sortBy, setSortBy] = useState<SortType>("date");
@@ -134,17 +135,17 @@ export default function ScrapScreen({
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       scrappedExpList = scrappedExpList.filter(
-        (e) =>
-          e.title.toLowerCase().includes(query) ||
-          e.description.toLowerCase().includes(query) ||
-          e.location.toLowerCase().includes(query) ||
-          e.tags.some((tag) => tag.toLowerCase().includes(query))
+          (e) =>
+              e.title.toLowerCase().includes(query) ||
+              e.description.toLowerCase().includes(query) ||
+              e.location.toLowerCase().includes(query) ||
+              e.tags.some((tag) => tag.toLowerCase().includes(query))
       );
       scrappedTrendList = scrappedTrendList.filter(
-        (t) =>
-          t.name.toLowerCase().includes(query) || 
-          t.description.toLowerCase().includes(query) || 
-          t.category.toLowerCase().includes(query)
+          (t) =>
+              t.name.toLowerCase().includes(query) ||
+              t.description.toLowerCase().includes(query) ||
+              t.category.toLowerCase().includes(query)
       );
     }
 
@@ -187,17 +188,17 @@ export default function ScrapScreen({
     const regex = new RegExp(`(${keyword.trim()})`, "gi");
     const parts = text.split(regex);
     return (
-      <Text>
-        {parts.map((part, index) =>
-          regex.test(part) ? (
-            <Text key={`${part}-${index}`} style={styles.highlightText}>
-              {part}
-            </Text>
-          ) : (
-            part
-          )
-        )}
-      </Text>
+        <Text>
+          {parts.map((part, index) =>
+              regex.test(part) ? (
+                  <Text key={`${part}-${index}`} style={styles.highlightText}>
+                    {part}
+                  </Text>
+              ) : (
+                  part
+              )
+          )}
+        </Text>
     );
   };
 
@@ -226,163 +227,163 @@ export default function ScrapScreen({
   };
 
   return (
-    <View style={styles.container}>
-      {/* 상단 헤더 */}
-      <View style={styles.topBar}>
-        <IconButton 
-          icon="arrow-left" 
-          onPress={onClose}
-          iconColor="#3b0764"
+      <SafeAreaView style={styles.container}>
+        {/* 상단 헤더 */}
+        <View style={styles.topBar}>
+          <IconButton
+              icon="arrow-left"
+              onPress={onClose}
+              iconColor="#3b0764"
+          />
+          <Text style={styles.headerText}>총 {totalScraps}개 스크랩</Text>
+        </View>
+
+        {/* 검색 입력 */}
+        <TextInput
+            style={styles.searchInput}
+            placeholder="제목, 설명, 위치, 태그로 검색"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            clearButtonMode="while-editing"
         />
-        <Text style={styles.headerText}>총 {totalScraps}개 스크랩</Text>
-      </View>
 
-      {/* 검색 입력 */}
-      <TextInput
-        style={styles.searchInput}
-        placeholder="제목, 설명, 위치, 태그로 검색"
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        clearButtonMode="while-editing"
-      />
+        {/* 필터 버튼들 */}
+        <View style={styles.filterRow}>
+          {filterOptions.map((option) => (
+              <Chip
+                  key={option.key}
+                  mode={filterType === option.key ? "flat" : "outlined"}
+                  onPress={() => setFilterType(option.key)}
+                  style={styles.filterChip}
+                  textStyle={filterType === option.key ? styles.selectedChipText : styles.chipText}
+              >
+                {option.label}
+              </Chip>
+          ))}
+        </View>
 
-      {/* 필터 버튼들 */}
-      <View style={styles.filterRow}>
-        {filterOptions.map((option) => (
-          <Chip
-            key={option.key}
-            mode={filterType === option.key ? "flat" : "outlined"}
-            onPress={() => setFilterType(option.key)}
-            style={styles.filterChip}
-            textStyle={filterType === option.key ? styles.selectedChipText : styles.chipText}
-          >
-            {option.label}
-          </Chip>
-        ))}
-      </View>
+        {/* 정렬 버튼들 */}
+        <View style={styles.filterRow}>
+          {sortOptions.map((option) => (
+              <Chip
+                  key={option.key}
+                  mode={sortBy === option.key ? "flat" : "outlined"}
+                  onPress={() => setSortBy(option.key)}
+                  style={styles.filterChip}
+                  textStyle={sortBy === option.key ? styles.selectedChipText : styles.chipText}
+              >
+                {option.label}
+              </Chip>
+          ))}
+        </View>
 
-      {/* 정렬 버튼들 */}
-      <View style={styles.filterRow}>
-        {sortOptions.map((option) => (
-          <Chip
-            key={option.key}
-            mode={sortBy === option.key ? "flat" : "outlined"}
-            onPress={() => setSortBy(option.key)}
-            style={styles.filterChip}
-            textStyle={sortBy === option.key ? styles.selectedChipText : styles.chipText}
-          >
-            {option.label}
-          </Chip>
-        ))}
-      </View>
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          {/* 경험 리스트 */}
+          {showExperiences && (
+              <>
+                <Text style={styles.subTitle}>
+                  스크랩한 경험 ({filteredAndSortedData.experiences.length})
+                </Text>
+                {filteredAndSortedData.experiences.length === 0 ? (
+                    <Text style={styles.emptyText}>
+                      {searchQuery ? "검색 결과가 없습니다." : "스크랩한 경험이 없습니다."}
+                    </Text>
+                ) : (
+                    filteredAndSortedData.experiences.map((experience) => (
+                        <Card key={experience.id} style={styles.card}>
+                          <TouchableOpacity
+                              onPress={() => onExperienceClick(experience)}
+                              style={styles.cardContent}
+                              activeOpacity={0.7}
+                          >
+                            <Text style={styles.emotion}>{emotionIcons[experience.emotion]}</Text>
+                            <View style={styles.contentArea}>
+                              <Text style={styles.title}>
+                                {searchQuery
+                                    ? highlightText(experience.title, searchQuery)
+                                    : experience.title}
+                              </Text>
+                              <Text style={styles.desc} numberOfLines={2}>
+                                {searchQuery
+                                    ? highlightText(experience.description, searchQuery)
+                                    : experience.description}
+                              </Text>
+                              <Text style={styles.meta}>
+                                {experience.location} • {formatDate(experience.date)}
+                              </Text>
+                              {experience.tags.length > 0 && (
+                                  <View style={styles.tagsContainer}>
+                                    {experience.tags.slice(0, 3).map((tag, index) => (
+                                        <Text key={index} style={styles.tag}>
+                                          #{tag}
+                                        </Text>
+                                    ))}
+                                  </View>
+                              )}
+                            </View>
+                            <IconButton
+                                icon="bookmark"
+                                size={20}
+                                iconColor="#f59e42"
+                                onPress={(e) => {
+                                  e?.stopPropagation?.();
+                                  onToggleExperienceScrap(experience.id);
+                                }}
+                            />
+                          </TouchableOpacity>
+                        </Card>
+                    ))
+                )}
+              </>
+          )}
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* 경험 리스트 */}
-        {showExperiences && (
-          <>
-            <Text style={styles.subTitle}>
-              스크랩한 경험 ({filteredAndSortedData.experiences.length})
-            </Text>
-            {filteredAndSortedData.experiences.length === 0 ? (
-              <Text style={styles.emptyText}>
-                {searchQuery ? "검색 결과가 없습니다." : "스크랩한 경험이 없습니다."}
-              </Text>
-            ) : (
-              filteredAndSortedData.experiences.map((experience) => (
-                <Card key={experience.id} style={styles.card}>
-                  <TouchableOpacity 
-                    onPress={() => onExperienceClick(experience)} 
-                    style={styles.cardContent}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.emotion}>{emotionIcons[experience.emotion]}</Text>
-                    <View style={styles.contentArea}>
-                      <Text style={styles.title}>
-                        {searchQuery
-                          ? highlightText(experience.title, searchQuery)
-                          : experience.title}
-                      </Text>
-                      <Text style={styles.desc} numberOfLines={2}>
-                        {searchQuery
-                          ? highlightText(experience.description, searchQuery)
-                          : experience.description}
-                      </Text>
-                      <Text style={styles.meta}>
-                        {experience.location} • {formatDate(experience.date)}
-                      </Text>
-                      {experience.tags.length > 0 && (
-                        <View style={styles.tagsContainer}>
-                          {experience.tags.slice(0, 3).map((tag, index) => (
-                            <Text key={index} style={styles.tag}>
-                              #{tag}
-                            </Text>
-                          ))}
-                        </View>
-                      )}
-                    </View>
-                    <IconButton
-                      icon="bookmark"
-                      size={20}
-                      iconColor="#f59e42"
-                      onPress={(e) => {
-                        e?.stopPropagation?.();
-                        onToggleExperienceScrap(experience.id);
-                      }}
-                    />
-                  </TouchableOpacity>
-                </Card>
-              ))
-            )}
-          </>
-        )}
+          {/* 트렌드 리스트 */}
+          {showTrends && (
+              <>
+                <Text style={styles.subTitle}>
+                  스크랩한 트렌드 ({filteredAndSortedData.trends.length})
+                </Text>
+                {filteredAndSortedData.trends.length === 0 ? (
+                    <Text style={styles.emptyText}>
+                      {searchQuery ? "검색 결과가 없습니다." : "스크랩한 트렌드가 없습니다."}
+                    </Text>
+                ) : (
+                    filteredAndSortedData.trends.map((trend) => (
+                        <Card key={trend.id} style={styles.card}>
+                          <View style={styles.cardContent}>
+                            <View style={styles.trendIcon}>
+                              <Text style={styles.trendIconText}>📈</Text>
+                            </View>
+                            <View style={styles.contentArea}>
+                              <Text style={styles.title}>
+                                {searchQuery ? highlightText(trend.name, searchQuery) : trend.name}
+                              </Text>
+                              <Text style={styles.desc} numberOfLines={2}>
+                                {searchQuery
+                                    ? highlightText(trend.description, searchQuery)
+                                    : trend.description}
+                              </Text>
+                              <Text style={styles.meta}>
+                                {trend.category} • 인기도 {trend.popularity}% • {formatDate(trend.createdAt)}
+                              </Text>
+                            </View>
+                            <IconButton
+                                icon="bookmark"
+                                size={20}
+                                iconColor="#f59e42"
+                                onPress={() => onToggleTrendScrap(trend.id)}
+                            />
+                          </View>
+                        </Card>
+                    ))
+                )}
+              </>
+          )}
 
-        {/* 트렌드 리스트 */}
-        {showTrends && (
-          <>
-            <Text style={styles.subTitle}>
-              스크랩한 트렌드 ({filteredAndSortedData.trends.length})
-            </Text>
-            {filteredAndSortedData.trends.length === 0 ? (
-              <Text style={styles.emptyText}>
-                {searchQuery ? "검색 결과가 없습니다." : "스크랩한 트렌드가 없습니다."}
-              </Text>
-            ) : (
-              filteredAndSortedData.trends.map((trend) => (
-                <Card key={trend.id} style={styles.card}>
-                  <View style={styles.cardContent}>
-                    <View style={styles.trendIcon}>
-                      <Text style={styles.trendIconText}>📈</Text>
-                    </View>
-                    <View style={styles.contentArea}>
-                      <Text style={styles.title}>
-                        {searchQuery ? highlightText(trend.name, searchQuery) : trend.name}
-                      </Text>
-                      <Text style={styles.desc} numberOfLines={2}>
-                        {searchQuery
-                          ? highlightText(trend.description, searchQuery)
-                          : trend.description}
-                      </Text>
-                      <Text style={styles.meta}>
-                        {trend.category} • 인기도 {trend.popularity}% • {formatDate(trend.createdAt)}
-                      </Text>
-                    </View>
-                    <IconButton
-                      icon="bookmark"
-                      size={20}
-                      iconColor="#f59e42"
-                      onPress={() => onToggleTrendScrap(trend.id)}
-                    />
-                  </View>
-                </Card>
-              ))
-            )}
-          </>
-        )}
-        
-        {/* 하단 여백 */}
-        <View style={styles.bottomSpacing} />
-      </ScrollView>
-    </View>
+          {/* 하단 여백 */}
+          <View style={styles.bottomSpacing} />
+        </ScrollView>
+      </SafeAreaView>
   );
 }
 

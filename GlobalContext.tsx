@@ -1,12 +1,12 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
-import { Experience, Trend, User, Comment } from './types'; // types.ts 경로 확인
-import { authApi, postsApi, trendsApi, initializeApi } from './utils/apiUtils'; // apiUtils.ts 경로 확인
+import { Experience, Trend, User } from './types';
+import { authApi, postsApi, trendsApi, initializeApi } from './utils/apiUtils';
 
 interface GlobalContextType {
   user: User | null;
   isInitializing: boolean;
-  
+
   experiences: Experience[];
   trends: Trend[];
   loadingExperiences: boolean;
@@ -16,7 +16,7 @@ interface GlobalContextType {
   setShowForm: (show: boolean) => void;
   editingExperience: Experience | null;
   setEditingExperience: (exp: Experience | null) => void;
-  
+
   selectedPostId: number | null;
   setSelectedPostId: (id: number | null) => void;
   selectedTrendId: number | null;
@@ -27,13 +27,17 @@ interface GlobalContextType {
   handleLogout: () => Promise<void>;
   fetchExperiences: () => Promise<void>;
   fetchTrends: () => Promise<void>;
-  
+
+  // --- 스크랩/좋아요 상태 및 함수 분리 ---
   likedPosts: Set<number>;
   scrappedPosts: Set<number>;
-  toggleLike: (postId: number) => void;
-  toggleScrap: (postId: number) => void;
+  scrappedTrends: Set<number>; // 트렌드 스크랩 상태 추가
+  togglePostLike: (postId: number) => Promise<void>;
+  togglePostScrap: (postId: number) => Promise<void>;
+  toggleTrendScrap: (trendId: number) => Promise<void>; // 트렌드 스크랩 함수 추가
   setLikeStatus: (postId: number, isLiked: boolean) => void;
   setScrapStatus: (postId: number, isScrapped: boolean) => void;
+  setTrendScrapStatus: (trendId: number, isScrapped: boolean) => void; // 개별 트렌드 상태 동기화 함수
 }
 
 const GlobalContext = createContext<GlobalContextType | undefined>(undefined);
@@ -41,20 +45,21 @@ const GlobalContext = createContext<GlobalContextType | undefined>(undefined);
 export const GlobalProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
-  
+
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [trends, setTrends] = useState<Trend[]>([]);
   const [loadingExperiences, setLoadingExperiences] = useState(false);
   const [loadingTrends, setLoadingTrends] = useState(false);
-  
+
   const [showForm, setShowForm] = useState(false);
   const [editingExperience, setEditingExperience] = useState<Experience | null>(null);
-  
+
   const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
   const [selectedTrendId, setSelectedTrendId] = useState<number | null>(null);
-  
+
   const [likedPosts, setLikedPosts] = useState(new Set<number>());
   const [scrappedPosts, setScrappedPosts] = useState(new Set<number>());
+  const [scrappedTrends, setScrappedTrends] = useState(new Set<number>());
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -74,28 +79,43 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const fetchExperiences = useCallback(async () => {
+    if (!user) return;
     setLoadingExperiences(true);
     try {
-      const data = await postsApi.getAll();
+      const data = await postsApi.getMyPosts();
       setExperiences(data);
+      const newScrappedPosts = new Set<number>();
+      const newLikedPosts = new Set<number>();
+      data.forEach(post => {
+        if (post.scrapped) newScrappedPosts.add(post.id);
+        if (post.liked) newLikedPosts.add(post.id);
+      });
+      setScrappedPosts(newScrappedPosts);
+      setLikedPosts(newLikedPosts);
     } catch (error) {
       console.error("게시글 목록 로딩 실패:", error);
     } finally {
       setLoadingExperiences(false);
     }
-  }, []);
+  }, [user]);
 
   const fetchTrends = useCallback(async () => {
+    if (!user) return;
     setLoadingTrends(true);
     try {
       const data = await trendsApi.getAll();
       setTrends(data);
+      const newScrappedTrends = new Set<number>();
+      data.forEach(trend => {
+        if (trend.scrapped) newScrappedTrends.add(trend.id);
+      });
+      setScrappedTrends(newScrappedTrends);
     } catch (error) {
       console.error("트렌드 목록 로딩 실패:", error);
     } finally {
       setLoadingTrends(false);
     }
-  }, []);
+  }, [user]);
 
   const handleLogin = useCallback(async (creds: { email: string; password: string }) => {
     try {
@@ -124,56 +144,85 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     setTrends([]);
     setLikedPosts(new Set());
     setScrappedPosts(new Set());
+    setScrappedTrends(new Set());
   }, []);
 
-  const toggleLike = useCallback((postId: number) => {
-    setLikedPosts(prev => {
-      const next = new Set(prev);
-      if (next.has(postId)) {
-        next.delete(postId);
-      } else {
-        next.add(postId);
-      }
-      return next;
-    });
-  }, []);
-  
-  const toggleScrap = useCallback((postId: number) => {
-    setScrappedPosts(prev => {
-      const next = new Set(prev);
-      if (next.has(postId)) {
-        next.delete(postId);
-      } else {
-        next.add(postId);
-      }
-      return next;
-    });
-  }, []);
+  const togglePostLike = useCallback(async (postId: number) => {
+    const originalState = new Set(likedPosts);
+    const newState = new Set(likedPosts);
+    if (newState.has(postId)) newState.delete(postId);
+    else newState.add(postId);
+    setLikedPosts(newState);
+
+    try {
+      await postsApi.likePost(postId);
+    } catch (error) {
+      setLikedPosts(originalState);
+      Alert.alert("오류", "좋아요 처리에 실패했습니다.");
+    }
+  }, [likedPosts]);
+
+  const togglePostScrap = useCallback(async (postId: number) => {
+    const originalState = new Set(scrappedPosts);
+    const newState = new Set(scrappedPosts);
+    if (newState.has(postId)) newState.delete(postId);
+    else newState.add(postId);
+    setScrappedPosts(newState);
+
+    try {
+      await postsApi.scrapPost(postId);
+    } catch (error) {
+      setScrappedPosts(originalState);
+      Alert.alert("오류", "게시물 스크랩 처리에 실패했습니다.");
+    }
+  }, [scrappedPosts]);
+
+  const toggleTrendScrap = useCallback(async (trendId: number) => {
+    const originalState = new Set(scrappedTrends);
+    const newState = new Set(scrappedTrends);
+    if (newState.has(trendId)) newState.delete(trendId);
+    else newState.add(trendId);
+    setScrappedTrends(newState);
+
+    try {
+      await trendsApi.scrap(trendId);
+    } catch (error) {
+      setScrappedTrends(originalState);
+      Alert.alert("오류", "트렌드 스크랩 처리에 실패했습니다.");
+    }
+  }, [scrappedTrends]);
 
   const setLikeStatus = useCallback((postId: number, isLiked: boolean) => {
     setLikedPosts(prev => {
-        const next = new Set(prev);
-        if (isLiked) {
-            next.add(postId);
-        } else {
-            next.delete(postId);
-        }
-        return next;
+      const next = new Set(prev);
+      if (isLiked) next.add(postId);
+      else next.delete(postId);
+      return next;
     });
   }, []);
 
   const setScrapStatus = useCallback((postId: number, isScrapped: boolean) => {
     setScrappedPosts(prev => {
-        const next = new Set(prev);
-        if (isScrapped) {
-            next.add(postId);
-        } else {
-            next.delete(postId);
-        }
-        return next;
+      const next = new Set(prev);
+      if (isScrapped) next.add(postId);
+      else next.delete(postId);
+      return next;
     });
   }, []);
-  
+
+  // ✨ 개별 트렌드 스크랩 상태를 서버와 동기화하기 위한 함수
+  const setTrendScrapStatus = useCallback((trendId: number, isScrapped: boolean) => {
+    setScrappedTrends(prev => {
+      const next = new Set(prev);
+      if (isScrapped) {
+        next.add(trendId);
+      } else {
+        next.delete(trendId);
+      }
+      return next;
+    });
+  }, []);
+
   const value = useMemo(() => ({
     user,
     isInitializing,
@@ -196,21 +245,25 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     fetchTrends,
     likedPosts,
     scrappedPosts,
-    toggleLike,
-    toggleScrap,
+    scrappedTrends,
+    togglePostLike,
+    togglePostScrap,
+    toggleTrendScrap,
     setLikeStatus,
     setScrapStatus,
+    setTrendScrapStatus, // ✨ context value에 추가
   }), [
-    user, isInitializing, experiences, trends, loadingExperiences, loadingTrends, 
-    showForm, editingExperience, selectedPostId, selectedTrendId, likedPosts, scrappedPosts,
+    user, isInitializing, experiences, trends, loadingExperiences, loadingTrends,
+    showForm, editingExperience, selectedPostId, selectedTrendId,
+    likedPosts, scrappedPosts, scrappedTrends,
     handleLogin, handleSignup, handleLogout, fetchExperiences, fetchTrends,
-    toggleLike, toggleScrap, setLikeStatus, setScrapStatus
+    togglePostLike, togglePostScrap, toggleTrendScrap, setLikeStatus, setScrapStatus, setTrendScrapStatus
   ]);
 
   return (
-    <GlobalContext.Provider value={value}>
-      {children}
-    </GlobalContext.Provider>
+      <GlobalContext.Provider value={value}>
+        {children}
+      </GlobalContext.Provider>
   );
 };
 

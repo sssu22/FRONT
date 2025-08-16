@@ -24,7 +24,7 @@ import { trendsApi, commentsApi } from "../utils/apiUtils";
 import { useGlobalContext } from "../GlobalContext";
 import { Trend, Comment } from "../types";
 
-// --- 컴포넌트 및 프롭 정의 ---
+// --- 컴포넌트 및 프롭 정의 (기존과 동일) ---
 
 interface TrendDetailScreenProps {
   trendId: number;
@@ -141,13 +141,19 @@ const CommentItem = ({ comment, trendId, currentUserId, onDeleteSuccess}: {
 // --- 메인 트렌드 상세 화면 컴포넌트 ---
 
 export default function TrendDetailScreen({ trendId, onClose, onNavigateToTrend }: TrendDetailScreenProps) {
-  const { user } = useGlobalContext();
+  // ✨ 1. GlobalContext에서 스크랩 관련 상태와 함수 가져오기
+  const { user, scrappedTrends, toggleTrendScrap, setTrendScrapStatus } = useGlobalContext();
+
   const [trend, setTrend] = useState<Trend | null>(null);
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState("");
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
-  const [isScrapped, setIsScrapped] = useState(false);
+  // ✨ 2. 로컬 isScrapped 상태 제거
+  // const [isScrapped, setIsScrapped] = useState(false);
+
+  // ✨ 3. GlobalContext의 scrappedTrends를 사용하여 스크랩 상태 결정
+  const isScrapped = scrappedTrends.has(trendId);
 
   const generateTrendColor = useCallback((id: number) => {
     const colors = [
@@ -165,14 +171,18 @@ export default function TrendDetailScreen({ trendId, onClose, onNavigateToTrend 
       setTrend(trendData);
       setLikeCount(trendData.likeCount || 0);
       setIsLiked(trendData.liked || trendData.isLiked || trendData.userLiked || false);
-      setIsScrapped(trendData.scrapped || trendData.isScrapped || trendData.userScrapped || false);
+
+      // ✨ 4. API 응답으로 받은 스크랩 상태를 GlobalContext에 동기화
+      const initialScrapStatus = trendData.scrapped || trendData.isScrapped || trendData.userScrapped || false;
+      setTrendScrapStatus(trendId, initialScrapStatus);
+
     } catch (err: any) {
       Alert.alert("오류", "트렌드 정보를 불러오는 데 실패했습니다.");
       console.error('트렌드 상세 조회 오류:', err);
     } finally {
       setLoading(false);
     }
-  }, [trendId]);
+  }, [trendId, setTrendScrapStatus]);
 
   useEffect(() => {
     fetchTrendDetail();
@@ -197,20 +207,13 @@ export default function TrendDetailScreen({ trendId, onClose, onNavigateToTrend 
     }
   };
 
+  // ✨ 5. 스크랩 핸들러를 GlobalContext의 함수 호출로 변경
   const handleScrapTrend = async () => {
     if (!trend || !user) {
       Alert.alert("알림", "로그인이 필요한 기능입니다.");
       return;
     }
-    const originalScrapped = isScrapped;
-    setIsScrapped(!isScrapped);
-
-    try {
-      await trendsApi.scrap(trend.id);
-    } catch (error) {
-      setIsScrapped(originalScrapped);
-      Alert.alert("오류", "스크랩 처리에 실패했습니다.");
-    }
+    await toggleTrendScrap(trend.id);
   };
 
   const handleCommentSubmit = async () => {
@@ -227,6 +230,7 @@ export default function TrendDetailScreen({ trendId, onClose, onNavigateToTrend 
     }
   };
 
+  // --- 렌더링 부분 (기존과 거의 동일) ---
   if (loading) {
     return <View style={styles.centerContainer}><ActivityIndicator size="large" color="#581c87" /></View>;
   }
@@ -401,6 +405,7 @@ export default function TrendDetailScreen({ trendId, onClose, onNavigateToTrend 
   );
 }
 
+// --- Stylesheet (기존과 동일) ---
 const styles = StyleSheet.create({
   safeAreaContainer: {
     flex: 1,

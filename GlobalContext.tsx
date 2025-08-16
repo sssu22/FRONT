@@ -1,3 +1,5 @@
+// sssu22/front/FRONT-feature-4/GlobalContext.tsx
+
 import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
 import { Experience, Trend, User } from './types';
@@ -5,39 +7,34 @@ import { authApi, postsApi, trendsApi, initializeApi } from './utils/apiUtils';
 
 interface GlobalContextType {
   user: User | null;
+  setUser: (user: User | null) => void;
   isInitializing: boolean;
-
   experiences: Experience[];
   trends: Trend[];
   loadingExperiences: boolean;
   loadingTrends: boolean;
-
   showForm: boolean;
   setShowForm: (show: boolean) => void;
   editingExperience: Experience | null;
   setEditingExperience: (exp: Experience | null) => void;
-
   selectedPostId: number | null;
   setSelectedPostId: (id: number | null) => void;
   selectedTrendId: number | null;
   setSelectedTrendId: (id: number | null) => void;
-
   handleLogin: (creds: { email: string; password: string }) => Promise<void>;
   handleSignup: (user: { email: string; password: string; name: string }) => Promise<void>;
   handleLogout: () => Promise<void>;
   fetchExperiences: () => Promise<void>;
   fetchTrends: () => Promise<void>;
-
-  // --- 스크랩/좋아요 상태 및 함수 분리 ---
   likedPosts: Set<number>;
   scrappedPosts: Set<number>;
-  scrappedTrends: Set<number>; // 트렌드 스크랩 상태 추가
+  scrappedTrends: Set<number>;
   togglePostLike: (postId: number) => Promise<void>;
   togglePostScrap: (postId: number) => Promise<void>;
-  toggleTrendScrap: (trendId: number) => Promise<void>; // 트렌드 스크랩 함수 추가
+  toggleTrendScrap: (trendId: number) => Promise<void>;
   setLikeStatus: (postId: number, isLiked: boolean) => void;
   setScrapStatus: (postId: number, isScrapped: boolean) => void;
-  setTrendScrapStatus: (trendId: number, isScrapped: boolean) => void; // 개별 트렌드 상태 동기화 함수
+  setTrendScrapStatus: (trendId: number, isScrapped: boolean) => void;
 }
 
 const GlobalContext = createContext<GlobalContextType | undefined>(undefined);
@@ -45,38 +42,45 @@ const GlobalContext = createContext<GlobalContextType | undefined>(undefined);
 export const GlobalProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
-
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [trends, setTrends] = useState<Trend[]>([]);
   const [loadingExperiences, setLoadingExperiences] = useState(false);
   const [loadingTrends, setLoadingTrends] = useState(false);
-
   const [showForm, setShowForm] = useState(false);
   const [editingExperience, setEditingExperience] = useState<Experience | null>(null);
-
   const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
   const [selectedTrendId, setSelectedTrendId] = useState<number | null>(null);
-
   const [likedPosts, setLikedPosts] = useState(new Set<number>());
   const [scrappedPosts, setScrappedPosts] = useState(new Set<number>());
   const [scrappedTrends, setScrappedTrends] = useState(new Set<number>());
+
+  const handleLogout = useCallback(async () => {
+    await authApi.logout();
+    setUser(null);
+    setExperiences([]);
+    setTrends([]);
+    setLikedPosts(new Set());
+    setScrappedPosts(new Set());
+    setScrappedTrends(new Set());
+  }, []);
 
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
         const token = await initializeApi();
         if (token) {
-          const profile = await authApi.validateToken();
-          setUser(profile.data);
+          const validatedUser = await authApi.validateToken();
+          setUser(validatedUser);
         }
       } catch (error) {
         console.log("초기화 중 토큰 검증 실패 (로그인 필요)");
+        await handleLogout();
       } finally {
         setIsInitializing(false);
       }
     };
     fetchInitialData();
-  }, []);
+  }, [handleLogout]);
 
   const fetchExperiences = useCallback(async () => {
     if (!user) return;
@@ -137,16 +141,6 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [handleLogin]);
 
-  const handleLogout = useCallback(async () => {
-    await authApi.logout();
-    setUser(null);
-    setExperiences([]);
-    setTrends([]);
-    setLikedPosts(new Set());
-    setScrappedPosts(new Set());
-    setScrappedTrends(new Set());
-  }, []);
-
   const togglePostLike = useCallback(async (postId: number) => {
     const originalState = new Set(likedPosts);
     const newState = new Set(likedPosts);
@@ -156,7 +150,7 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       await postsApi.likePost(postId);
-      await fetchExperiences(); // ✨ 좋아요 후 최신 정보 다시 가져오기
+      await fetchExperiences();
     } catch (error) {
       setLikedPosts(originalState);
       Alert.alert("오류", "좋아요 처리에 실패했습니다.");
@@ -172,7 +166,7 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       await postsApi.scrapPost(postId);
-      await fetchExperiences(); // ✨ 스크랩 후 최신 정보 다시 가져오기
+      await fetchExperiences();
     } catch (error) {
       setScrappedPosts(originalState);
       Alert.alert("오류", "게시물 스크랩 처리에 실패했습니다.");
@@ -188,7 +182,7 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       await trendsApi.scrap(trendId);
-      await fetchTrends(); // 트렌드 스크랩 후 최신 정보 다시 가져오기
+      await fetchTrends();
     } catch (error) {
       setScrappedTrends(originalState);
       Alert.alert("오류", "트렌드 스크랩 처리에 실패했습니다.");
@@ -216,17 +210,15 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
   const setTrendScrapStatus = useCallback((trendId: number, isScrapped: boolean) => {
     setScrappedTrends(prev => {
       const next = new Set(prev);
-      if (isScrapped) {
-        next.add(trendId);
-      } else {
-        next.delete(trendId);
-      }
+      if (isScrapped) next.add(trendId);
+      else next.delete(trendId);
       return next;
     });
   }, []);
 
   const value = useMemo(() => ({
     user,
+    setUser,
     isInitializing,
     experiences,
     trends,

@@ -1,6 +1,6 @@
-// sssu22/front/FRONT-feature-3/screens/ProfileTab.tsx
+// sssu22/front/FRONT-feature-4/screens/ProfileTab.tsx
 
-import React, { useState } from "react"; // ✅ 'inport'를 'import'로 수정했습니다.
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -10,10 +10,11 @@ import {
   StyleSheet,
   SafeAreaView,
 } from "react-native";
-import { Card, Button, IconButton } from "react-native-paper";
+import { Card, Button, IconButton, Avatar } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import ProfileEdit from "./ProfileEdit";
 import { Experience, User, EmotionType } from "../types";
+import { useGlobalContext } from "../GlobalContext";
 
 const emotionIcons: Record<EmotionType, string> = {
   joy: "😊", excitement: "🔥", nostalgia: "💭", surprise: "😲", love: "💖",
@@ -25,7 +26,6 @@ interface ProfileTabProps {
   onExperienceClick: (exp: Experience) => void;
   onLogout: () => void;
   onShowScraps: () => void;
-  user: User | null;
   scrappedCount: number;
 }
 
@@ -34,14 +34,13 @@ export default function ProfileTab({
                                      onExperienceClick,
                                      onLogout,
                                      onShowScraps,
-                                     user,
                                      scrappedCount,
                                    }: ProfileTabProps) {
+  const { user } = useGlobalContext();
   const [showProfileEdit, setShowProfileEdit] = useState(false);
 
-  // user 객체가 없을 때 에러가 나지 않도록 방어 코드를 추가합니다.
   if (!user) {
-    return null;
+    return null; // 사용자 정보가 없으면 아무것도 렌더링하지 않음
   }
 
   const totalTrendScore = experiences.reduce((sum, e) => sum + e.trendScore, 0);
@@ -50,16 +49,22 @@ export default function ProfileTab({
       : 0;
   const uniqueLocations = new Set(experiences.map((e) => e.location)).size;
 
+  // 👇 *** 여기가 수정된 부분입니다 (user.name 방어 코드) *** 👇
+  const userName = user.name || "";
+  const userInitial = userName ? userName.charAt(0).toUpperCase() : "";
+
   return (
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {user.profileImageUrl ? "👤" : user.name.charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          {user.profileImageUrl ? (
+              <Avatar.Image size={72} source={{ uri: user.profileImageUrl }} />
+          ) : (
+              // userInitial을 사용하여 안전하게 렌더링
+              <Avatar.Text size={72} label={userInitial} style={styles.avatarTextContainer} />
+          )}
           <View style={styles.profileInfo}>
-            <Text style={styles.username}>{user.name}</Text>
+            {/* userName을 사용하여 안전하게 렌더링 */}
+            <Text style={styles.username}>{userName}</Text>
             <Text style={styles.email}>{user.email}</Text>
           </View>
           <IconButton
@@ -145,8 +150,15 @@ export default function ProfileTab({
 const styles = StyleSheet.create({
   container: { padding: 16, backgroundColor: "#fff" },
   header: { flexDirection: "row", alignItems: "center", marginBottom: 16, },
-  avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: "#8b5cf6", justifyContent: "center", alignItems: "center", marginRight: 16, },
-  avatarText: { color: "#fff", fontSize: 30, fontWeight: "bold" },
+  avatarTextContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#8b5cf6",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
   profileInfo: { flex: 1 },
   username: { fontSize: 20, fontWeight: "bold", marginBottom: 2, color: "#374151" },
   email: { fontSize: 14, color: "#6b7280" },

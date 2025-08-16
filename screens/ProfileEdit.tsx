@@ -1,3 +1,5 @@
+// sssu22/front/FRONT-feature-4/screens/ProfileEdit.tsx
+
 import React, { useState } from "react";
 import {
   View,
@@ -15,33 +17,35 @@ import {
 } from "react-native";
 import { Button, Avatar } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { usersApi } from "../utils/apiUtils"; // apiUtils import 추가
-
-
-/** ✅ 바꿔 써야 하는 부분: 백엔드 주소/엔드포인트 */
-const API_BASE = "http://34.219.161.217:8080/api/v1"; // TODO: 실제 API 주소로 교체
+import * as ImagePicker from 'expo-image-picker';
+import { usersApi } from "../utils/apiUtils";
+import { useGlobalContext } from "../GlobalContext";
 
 interface ProfileEditProps {
   onClose: () => void;
 }
 
-export default function ProfileEdit({ onClose }: ProfileEditProps) {
-  const [username, setUsername] = useState("사용자");
-  const [email] = useState("user@example.com");
-  const [bio, setBio] = useState("트렌드를 탐험하는 것을 좋아합니다!");
-  const [birthday, setBirthday] = useState("1995-06-15");
-  const [location, setLocation] = useState("서울특별시");
-  const [allowLocation, setAllowLocation] = useState(false);
+interface ImageUploadResponse {
+  profileImageUrl: string;
+}
 
-  // ▼▼ 추가: 비밀번호 변경 모달/폼 상태
+export default function ProfileEdit({ onClose }: ProfileEditProps) {
+  const { user, setUser, handleLogout } = useGlobalContext();
+
+  const [username, setUsername] = useState(user?.name || "사용자");
+  const [email] = useState(user?.email || "user@example.com");
+  const [bio, setBio] = useState(user?.stateMessage || "트렌드를 탐험하는 것을 좋아합니다!");
+  const [birthday, setBirthday] = useState(user?.birth || "1995-06-15");
+  const [location, setLocation] = useState(user?.address || "서울특별시");
+  const [allowLocation, setAllowLocation] = useState(user?.locationTracing || false);
+  const [profileImage, setProfileImage] = useState<string | null>(user?.profileImageUrl || null);
+  const [isUploading, setIsUploading] = useState(false);
+
   const [pwModalVisible, setPwModalVisible] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newPassword2, setNewPassword2] = useState("");
   const [pwLoading, setPwLoading] = useState(false);
-
-  // ▼▼ 추가: 계정 삭제 모달/폼 상태
   const [delModalVisible, setDelModalVisible] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [delLoading, setDelLoading] = useState(false);
@@ -55,7 +59,18 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
         locationTracing: allowLocation,
       };
 
-      await usersApi.updateMe(updatedProfileData);
+      const response = await usersApi.updateMe(updatedProfileData);
+
+      if (user && setUser) {
+        const updatedUser = {
+          ...user,
+          name: response.name || username,
+          address: response.address || location,
+          stateMessage: response.stateMessage || bio,
+          locationTracing: response.locationTracing ?? allowLocation,
+        };
+        setUser(updatedUser);
+      }
 
       Alert.alert("성공", "프로필 정보가 성공적으로 업데이트되었습니다.");
       onClose();
@@ -65,31 +80,45 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
     }
   };
 
-  /** ▼▼ 추가: 공통 토큰 가져오기 */
-  const getToken = async () => {
-    const keys = ["authToken", "accessToken"];
-    for (const k of keys) {
-      const v = await AsyncStorage.getItem(k);
-      if (v) return v;
+  const handleSelectImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('권한 필요', '프로필 사진을 변경하려면 사진첩 접근 권한이 필요합니다.');
+      return;
     }
-    return null;
-  };
 
-  /** ▼▼ 추가: 서버 메시지 안전 파싱 */
-  const safeMsg = async (res: Response) => {
-    try {
-      const data = await res.json();
-      return (data as any)?.message || (data as any)?.error || "";
-    } catch {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      // ✅ 수정된 부분: MediaTypeOptions를 사용하고, 경고 해결을 위해 문자열 값으로 변경
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const imageUri = result.assets[0].uri;
+      setProfileImage(imageUri);
+      setIsUploading(true);
       try {
-        return await res.text();
-      } catch {
-        return "";
+        // ✅ 수정된 부분: API 응답 타입을 명시적으로 지정
+        const response = await usersApi.updateProfileImage(imageUri) as ImageUploadResponse;
+        const newImageUrl = response?.profileImageUrl || imageUri;
+        setProfileImage(newImageUrl);
+
+        if (user && setUser) {
+          setUser({ ...user, profileImageUrl: newImageUrl });
+        }
+        Alert.alert("성공", "프로필 사진이 변경되었습니다.");
+      } catch (error) {
+        console.error("이미지 업로드 실패:", error);
+        Alert.alert("오류", "사진 업로드에 실패했습니다.");
+        setProfileImage(user?.profileImageUrl || null);
+      } finally {
+        setIsUploading(false);
       }
     }
   };
 
-  /** ▼▼ 추가: 비밀번호 변경 */
   const handleChangePassword = async () => {
     if (!currentPassword.trim() || !newPassword.trim() || !newPassword2.trim()) {
       Alert.alert("입력 필요", "현재 비밀번호와 새 비밀번호를 모두 입력해주세요.");
@@ -106,7 +135,6 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
 
     setPwLoading(true);
     try {
-      // ✅ usersApi.changePassword 함수 호출
       await usersApi.changePassword({
         currentPassword: currentPassword,
         newPassword: newPassword,
@@ -125,7 +153,6 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
     }
   };
 
-  /** ▼▼ 추가: 계정 삭제 */
   const handleDeleteAccount = async () => {
     if (confirmText.trim().toUpperCase() !== "DELETE") {
       Alert.alert('확인 필요', '입력란에 대문자로 "DELETE"를 정확히 입력해주세요.');
@@ -149,15 +176,13 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
   const actuallyDelete = async () => {
     setDelLoading(true);
     try {
-      // ✅ usersApi.deleteAccount 함수 호출
       await usersApi.deleteAccount();
-
-      // 로컬 토큰/프로필 정리
-      await AsyncStorage.multiRemove(["authToken", "accessToken", "user", "profile", "TrendLog-token", "TrendLog-refresh"]);
 
       setDelModalVisible(false);
       setConfirmText("");
       Alert.alert("계정 삭제됨", "이용해 주셔서 감사합니다.");
+
+      await handleLogout();
       onClose();
     } catch (e: any) {
       const errorMessage = e.response?.data?.message || e.message || "계정 삭제 중 문제가 발생했습니다.";
@@ -169,8 +194,7 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
 
   return (
       <>
-        <ScrollView style={styles.container}>
-          {/* Header */}
+        <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="arrow-back" size={24} color="#333" />
@@ -178,16 +202,25 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
             <Text style={styles.headerTitle}>프로필 수정</Text>
           </View>
 
-          {/* 프로필 이미지 */}
           <View style={styles.profileImageSection}>
-            <Avatar.Text size={80} label={username.charAt(0)} />
-            <TouchableOpacity style={styles.cameraIcon}>
-              <Ionicons name="camera" size={18} color="#fff" />
+            <TouchableOpacity onPress={handleSelectImage} disabled={isUploading}>
+              {profileImage ? (
+                  <Avatar.Image size={80} source={{ uri: profileImage }} />
+              ) : (
+                  <Avatar.Text size={80} label={username.charAt(0)} />
+              )}
+              {isUploading && (
+                  <View style={styles.uploadingOverlay}>
+                    <ActivityIndicator color="#fff" />
+                  </View>
+              )}
+              <View style={styles.cameraIcon}>
+                <Ionicons name="camera" size={18} color="#fff" />
+              </View>
             </TouchableOpacity>
-            <Text style={styles.photoText}>프로필 사진을 변경하려면 카메라 아이콘을 클릭하세요</Text>
+            <Text style={styles.photoText}>프로필 사진을 변경하려면 이미지를 터치하세요.</Text>
           </View>
 
-          {/* 기본 정보 */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>기본 정보</Text>
             <TextInput
@@ -210,7 +243,7 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
             />
             <TextInput
                 style={styles.input}
-                placeholder="생년월일"
+                placeholder="생년월일 (YYYY-MM-DD)"
                 value={birthday}
                 onChangeText={setBirthday}
             />
@@ -222,7 +255,6 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
             />
           </View>
 
-          {/* 프라이버시 설정 */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>프라이버시 설정</Text>
             <View style={styles.switchRow}>
@@ -231,14 +263,11 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
             </View>
           </View>
 
-          {/* 계정 관리 */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: "red" }]}>계정 관리</Text>
-
             <TouchableOpacity style={styles.accountButton} onPress={() => setPwModalVisible(true)}>
               <Text>비밀번호 변경</Text>
             </TouchableOpacity>
-
             <TouchableOpacity
                 style={[styles.accountButton, { color: "red" }]}
                 onPress={() => setDelModalVisible(true)}
@@ -252,7 +281,6 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
           </Button>
         </ScrollView>
 
-        {/* 비밀번호 변경 모달 */}
         <Modal visible={pwModalVisible} animationType="slide" transparent>
           <KeyboardAvoidingView
               behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -260,7 +288,6 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
           >
             <View style={styles.modalCard}>
               <Text style={styles.modalTitle}>비밀번호 변경</Text>
-
               <Text style={styles.label}>현재 비밀번호</Text>
               <TextInput
                   style={styles.input}
@@ -269,7 +296,6 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
                   value={currentPassword}
                   onChangeText={setCurrentPassword}
               />
-
               <Text style={styles.label}>새 비밀번호</Text>
               <TextInput
                   style={styles.input}
@@ -278,7 +304,6 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
                   value={newPassword}
                   onChangeText={setNewPassword}
               />
-
               <Text style={styles.label}>새 비밀번호 확인</Text>
               <TextInput
                   style={styles.input}
@@ -287,7 +312,6 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
                   value={newPassword2}
                   onChangeText={setNewPassword2}
               />
-
               <View style={styles.modalActions}>
                 <TouchableOpacity
                     style={[styles.modalBtn, styles.outlineBtn]}
@@ -301,7 +325,6 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
                 >
                   <Text style={styles.outlineText}>취소</Text>
                 </TouchableOpacity>
-
                 <TouchableOpacity
                     style={[styles.modalBtn, styles.primaryBtn]}
                     onPress={handleChangePassword}
@@ -314,7 +337,6 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
           </KeyboardAvoidingView>
         </Modal>
 
-        {/* 계정 삭제 모달 */}
         <Modal visible={delModalVisible} animationType="slide" transparent>
           <KeyboardAvoidingView
               behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -326,7 +348,6 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
                 계정을 삭제하면 복구할 수 없습니다. 계속하려면{" "}
                 <Text style={{ fontWeight: "bold" }}>"DELETE"</Text> 를 입력하세요.
               </Text>
-
               <TextInput
                   style={styles.input}
                   placeholder='DELETE 를 입력'
@@ -334,7 +355,6 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
                   value={confirmText}
                   onChangeText={setConfirmText}
               />
-
               <View style={styles.modalActions}>
                 <TouchableOpacity
                     style={[styles.modalBtn, styles.outlineBtn]}
@@ -346,7 +366,6 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
                 >
                   <Text style={styles.outlineText}>취소</Text>
                 </TouchableOpacity>
-
                 <TouchableOpacity
                     style={[styles.modalBtn, styles.dangerSolidBtn]}
                     onPress={handleDeleteAccount}
@@ -373,11 +392,13 @@ const styles = StyleSheet.create({
   profileImageSection: { alignItems: "center", marginVertical: 16 },
   cameraIcon: {
     position: "absolute",
-    right: "40%",
-    bottom: 20,
+    right: -5,
+    bottom: -5,
     backgroundColor: "#7c3aed",
     padding: 6,
     borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#fff',
   },
   photoText: { fontSize: 12, color: "#555", marginTop: 8, textAlign: "center" },
   section: { marginBottom: 20 },
@@ -461,4 +482,11 @@ const styles = StyleSheet.create({
   primaryText: { color: "#fff", fontWeight: "700" },
   dangerSolidBtn: { backgroundColor: "#D32F2F" },
   dangerSolidText: { color: "#fff", fontWeight: "700" },
+  uploadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 40,
+  },
 });

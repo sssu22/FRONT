@@ -156,11 +156,12 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       await postsApi.likePost(postId);
+      await fetchExperiences(); // ✨ 좋아요 후 최신 정보 다시 가져오기
     } catch (error) {
       setLikedPosts(originalState);
       Alert.alert("오류", "좋아요 처리에 실패했습니다.");
     }
-  }, [likedPosts]);
+  }, [likedPosts, fetchExperiences]);
 
   const togglePostScrap = useCallback(async (postId: number) => {
     const originalState = new Set(scrappedPosts);
@@ -171,11 +172,12 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       await postsApi.scrapPost(postId);
+      await fetchExperiences(); // ✨ 스크랩 후 최신 정보 다시 가져오기
     } catch (error) {
       setScrappedPosts(originalState);
       Alert.alert("오류", "게시물 스크랩 처리에 실패했습니다.");
     }
-  }, [scrappedPosts]);
+  }, [scrappedPosts, fetchExperiences]);
 
   const toggleTrendScrap = useCallback(async (trendId: number) => {
     const originalState = new Set(scrappedTrends);
@@ -186,11 +188,12 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       await trendsApi.scrap(trendId);
+      await fetchTrends(); // 트렌드 스크랩 후 최신 정보 다시 가져오기
     } catch (error) {
       setScrappedTrends(originalState);
       Alert.alert("오류", "트렌드 스크랩 처리에 실패했습니다.");
     }
-  }, [scrappedTrends]);
+  }, [scrappedTrends, fetchTrends]);
 
   const setLikeStatus = useCallback((postId: number, isLiked: boolean) => {
     setLikedPosts(prev => {
@@ -210,7 +213,6 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     });
   }, []);
 
-  // ✨ 개별 트렌드 스크랩 상태를 서버와 동기화하기 위한 함수
   const setTrendScrapStatus = useCallback((trendId: number, isScrapped: boolean) => {
     setScrappedTrends(prev => {
       const next = new Set(prev);
@@ -251,7 +253,7 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     toggleTrendScrap,
     setLikeStatus,
     setScrapStatus,
-    setTrendScrapStatus, // ✨ context value에 추가
+    setTrendScrapStatus,
   }), [
     user, isInitializing, experiences, trends, loadingExperiences, loadingTrends,
     showForm, editingExperience, selectedPostId, selectedTrendId,

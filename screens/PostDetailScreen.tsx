@@ -19,19 +19,21 @@ interface PostDetailScreenProps {
   onTrendPress: (trendId: number) => void;
 }
 
-const normalizeComment = (comment: Comment): Comment => {
-  const c: any = comment;
+const normalizeComment = (comment: any): Comment => {
   return {
-    ...comment,
-    id: c.id || c.commentId || c._id,
-    createdAt: c.time || c.createdAt || c.timestamp || "",
-    username: c.userName || c.authorName || c.username || "",
-    imageUrl: c.imageUrl || c.profileImageUrl || "",
+    id: comment.id || comment.commentId,
+    content: comment.content,
+    createdAt: comment.createdAt || comment.time,
+    likeCount: comment.likeCount,
+    liked: comment.liked ?? false,
+    username: comment.username || comment.authorName || "사용자",
+    userId: comment.userId,
+    imageUrl: comment.imageUrl || comment.authorProfileImageUrl,
   };
 };
 
 const CommentItem = ({
-                       comment: rawComment,
+                       comment,
                        postId,
                        currentUserId,
                        onActionSuccess,
@@ -41,32 +43,23 @@ const CommentItem = ({
   currentUserId: string | undefined;
   onActionSuccess: () => void;
 }) => {
-  const comment = normalizeComment(rawComment);
-  const [isLiking, setIsLiking] = useState(false);
-
-  const commentId = comment.id || comment.commentId;
   const isMyComment = String(comment.userId) === String(currentUserId);
 
   const handleLikeComment = async () => {
-    if (isLiking || !commentId) return;
-    setIsLiking(true);
     try {
-      await commentsApi.like(postId, commentId);
+      await commentsApi.like(postId, comment.id);
       onActionSuccess();
     } catch (error) {
       Alert.alert("오류", "댓글 좋아요 처리에 실패했습니다.");
-    } finally {
-      setIsLiking(false);
     }
   };
 
   const handleDeleteComment = () => {
-    if (!commentId) return;
     Alert.alert("댓글 삭제", "정말 이 댓글을 삭제하시겠습니까?", [
       { text: "취소", style: "cancel" },
       { text: "삭제", style: "destructive", onPress: async () => {
           try {
-            await commentsApi.delete(postId, commentId);
+            await commentsApi.delete(postId, comment.id);
             onActionSuccess();
           } catch (error) {
             Alert.alert("오류", "댓글 삭제에 실패했습니다.");
@@ -84,7 +77,7 @@ const CommentItem = ({
         />
         <View style={styles.commentBody}>
           <View style={styles.commentHeader}>
-            <Text style={styles.commentUsername}>{comment.username || "사용자"}</Text>
+            <Text style={styles.commentUsername}>{comment.username}</Text>
             <Text style={styles.commentTime}>{comment.createdAt}</Text>
             {isMyComment && (
                 <TouchableOpacity style={styles.commentActionButton} onPress={handleDeleteComment}>
@@ -92,14 +85,14 @@ const CommentItem = ({
                 </TouchableOpacity>
             )}
           </View>
-          <Text style={styles.commentContent}>{comment.content || ""}</Text>
-          <TouchableOpacity style={styles.commentFooter} onPress={handleLikeComment} disabled={isLiking}>
+          <Text style={styles.commentContent}>{comment.content}</Text>
+          <TouchableOpacity style={styles.commentFooter} onPress={handleLikeComment}>
             <Ionicons
                 name={comment.liked ? "heart" : "heart-outline"}
                 size={16}
                 color={comment.liked ? "#E91E63" : "#999"}
             />
-            {(comment.likeCount || 0) > 0 && (
+            {comment.likeCount > 0 && (
                 <Text style={[styles.commentLikes, { color: comment.liked ? "#E91E63" : "#999" }]}>
                   {comment.likeCount}
                 </Text>
@@ -115,66 +108,39 @@ export default function PostDetailScreen({
                                            onClose,
                                            onTrendPress,
                                          }: PostDetailScreenProps) {
-  const { user } = useGlobalContext();
-
+  const { user, togglePostLike, togglePostScrap } = useGlobalContext();
   const [post, setPost] = useState<Experience | null>(null);
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState("");
 
-  const [isLiked, setIsLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
-  const [isScrapped, setIsScrapped] = useState(false);
-
-  const fetchPostDetail = useCallback(async () => {
+  const fetchPostDetail = useCallback(async (isInitial = false) => {
+    if (isInitial) setLoading(true);
     try {
       const postData = await postsApi.getById(postId);
       const normalizedComments = (postData.comments || []).map(normalizeComment);
-
       setPost({ ...postData, comments: normalizedComments });
-      setLikeCount(postData.likeCount || 0);
-      setIsLiked(postData.liked ?? false);
-      setIsScrapped(postData.scrapped ?? false);
     } catch (err: any) {
       Alert.alert("오류", "게시글을 불러오는 데 실패했습니다.");
       onClose();
     } finally {
-      if (loading) setLoading(false);
+      if (isInitial) setLoading(false);
     }
-  }, [postId, onClose, loading]);
+  }, [postId, onClose]);
 
   useEffect(() => {
-    fetchPostDetail();
-  }, [postId]);
+    fetchPostDetail(true);
+  }, [fetchPostDetail]);
 
   const handleLike = async () => {
     if (!post) return;
-
-    const originalLiked = isLiked;
-    const originalLikeCount = likeCount;
-    setIsLiked(!isLiked);
-    setLikeCount(isLiked ? likeCount - 1 : likeCount + 1);
-
-    try {
-      await postsApi.likePost(post.id);
-    } catch (error) {
-      setIsLiked(originalLiked);
-      setLikeCount(originalLikeCount);
-      Alert.alert("오류", "좋아요 처리에 실패했습니다.");
-    }
+    await togglePostLike(post.id);
+    await fetchPostDetail();
   };
 
   const handleScrap = async () => {
     if (!post) return;
-
-    const originalScrapped = isScrapped;
-    setIsScrapped(!isScrapped);
-
-    try {
-      await postsApi.scrapPost(post.id);
-    } catch (error) {
-      setIsScrapped(originalScrapped);
-      Alert.alert("오류", "스크랩 처리에 실패했습니다.");
-    }
+    await togglePostScrap(post.id);
+    await fetchPostDetail();
   };
 
   const handleCommentSubmit = async () => {
@@ -189,11 +155,7 @@ export default function PostDetailScreen({
   };
 
   if (loading) {
-    return (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#581c87" />
-        </View>
-    );
+    return <View style={styles.centerContainer}><ActivityIndicator size="large" color="#581c87" /></View>;
   }
 
   if (!post) {
@@ -247,9 +209,9 @@ export default function PostDetailScreen({
 
             <View style={styles.statsContainer}>
               <TouchableOpacity style={styles.statItem} onPress={handleLike}>
-                <Ionicons name={isLiked ? "heart" : "heart-outline"} size={16} color={isLiked ? "#E91E63" : "#666"} />
-                <Text style={[styles.statText, { color: isLiked ? "#E91E63" : "#333" }]}>
-                  {likeCount.toLocaleString()}
+                <Ionicons name={post.liked ? "heart" : "heart-outline"} size={16} color={post.liked ? "#E91E63" : "#666"} />
+                <Text style={[styles.statText, { color: post.liked ? "#E91E63" : "#333" }]}>
+                  {post.likeCount.toLocaleString()}
                 </Text>
               </TouchableOpacity>
               <View style={styles.statItem}>
@@ -262,7 +224,7 @@ export default function PostDetailScreen({
               </View>
               <View style={{ flex: 1 }} />
               <TouchableOpacity onPress={handleScrap}>
-                <Ionicons name={isScrapped ? "bookmark" : "bookmark-outline"} size={20} color={isScrapped ? "#FFC107" : "#666"} />
+                <Ionicons name={post.scrapped ? "bookmark" : "bookmark-outline"} size={20} color={post.scrapped ? "#FFC107" : "#666"} />
               </TouchableOpacity>
             </View>
 
@@ -300,11 +262,11 @@ export default function PostDetailScreen({
               {post.comments && post.comments.length > 0 ? (
                   post.comments.map((c) => (
                       <CommentItem
-                          key={String(c.id || c.commentId)}
+                          key={c.id}
                           comment={c}
                           postId={post.id}
                           currentUserId={user?.id}
-                          onActionSuccess={fetchPostDetail}
+                          onActionSuccess={() => fetchPostDetail(false)}
                       />
                   ))
               ) : (

@@ -68,10 +68,6 @@ export default function LoginForm({ onLogin, onShowSignup, onBack, onShowResetPa
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setError("구글 로그인은 아직 구현되지 않았습니다.");
-  };
-
   return (
       <KeyboardAvoidingView
           style={styles.root}
@@ -163,19 +159,6 @@ export default function LoginForm({ onLogin, onShowSignup, onBack, onShowResetPa
             <View style={styles.separatorLine} />
           </View>
 
-          <Button
-              mode="outlined"
-              onPress={handleGoogleLogin}
-              disabled={isLoading}
-              style={styles.googleBtn}
-              contentStyle={{ height: 44 }}
-              icon={({ color }) => (
-                  <Ionicons name="logo-google" size={18} color={color || "#EA4335"} />
-              )}
-          >
-            Google로 로그인
-          </Button>
-
           <View style={{ alignItems: "center", marginVertical: 15 }}>
             <Text style={{ color: "#666", fontSize: 13 }}>
               계정이 없으신가요?{" "}
@@ -266,10 +249,6 @@ const styles = StyleSheet.create({
   separatorRow: { flexDirection: "row", alignItems: "center", marginVertical: 16 },
   separatorLine: { flex: 1, height: 1, backgroundColor: "#eee" },
   separatorText: { marginHorizontal: 8, color: "#AAA", fontSize: 12 },
-  googleBtn: {
-    borderColor: "#bbb",
-    backgroundColor: "#F3F3F8",
-  },
   demoBox: {
     marginTop: 8,
     backgroundColor: "#e6e6ff",

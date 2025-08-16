@@ -1,3 +1,4 @@
+// TrendDetailScreen.tsx
 import React, {
   useState,
   useEffect,
@@ -251,158 +252,160 @@ export default function TrendDetailScreen({ trendId, onClose, onNavigateToTrend 
   const trendColor = generateTrendColor(trendId);
 
   return (
-      <KeyboardAvoidingView
-          style={styles.container}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={0}
-      >
-        <View style={styles.navBar}>
-          <View style={styles.navBarSide}>
+      <SafeAreaView style={styles.safeAreaContainer}>
+        <KeyboardAvoidingView
+            style={styles.container}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={0}
+        >
+          <View style={styles.navBar}>
             <TouchableOpacity onPress={onClose} style={styles.navButton}>
               <Ionicons name="arrow-back" size={24} color="#333" />
             </TouchableOpacity>
-          </View>
-          <View style={styles.navBarTitleContainer}>
-            <Text style={styles.navTitle} numberOfLines={1}>트렌드 상세</Text>
-          </View>
-          <View style={styles.navBarSide}>
+            <View style={styles.navBarTitleContainer}>
+              <Text style={styles.navTitle} numberOfLines={1}>트렌드 상세</Text>
+            </View>
             <TouchableOpacity style={styles.navButton}>
               <Ionicons name="share-social-outline" size={24} color="#333" />
             </TouchableOpacity>
           </View>
-        </View>
 
-        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-          <View style={[styles.header, { backgroundColor: trendColor }]}>
-            <Text style={styles.title}>{trend.title}</Text>
-          </View>
-
-          <View style={styles.statsContainer}>
-            <TouchableOpacity style={styles.statItem} onPress={handleLikeTrend}>
-              <Ionicons name={isLiked ? "heart" : "heart-outline"} size={16} color={isLiked ? "#E91E63" : "#666"} />
-              <Text style={[styles.statText, { color: isLiked ? "#E91E63" : "#333" }]}>{likeCount.toLocaleString()}</Text>
-            </TouchableOpacity>
-            <View style={styles.statItem}>
-              <Ionicons name="chatbubble-outline" size={16} color="#666" />
-              <Text style={styles.statText}>{(trend.comments || []).length.toString()}</Text>
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+            <View style={[styles.header, { backgroundColor: trendColor }]}>
+              <Text style={styles.title}>{trend.title}</Text>
             </View>
-            <View style={styles.statItem}>
-              <Ionicons name="eye-outline" size={16} color="#666" />
-              <Text style={styles.statText}>{(trend.viewCount || 0).toLocaleString()}</Text>
+
+            <View style={styles.statsContainer}>
+              <TouchableOpacity style={styles.statItem} onPress={handleLikeTrend}>
+                <Ionicons name={isLiked ? "heart" : "heart-outline"} size={16} color={isLiked ? "#E91E63" : "#666"} />
+                <Text style={[styles.statText, { color: isLiked ? "#E91E63" : "#333" }]}>{likeCount.toLocaleString()}</Text>
+              </TouchableOpacity>
+              <View style={styles.statItem}>
+                <Ionicons name="chatbubble-outline" size={16} color="#666" />
+                <Text style={styles.statText}>{(trend.comments || []).length.toString()}</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Ionicons name="eye-outline" size={16} color="#666" />
+                <Text style={styles.statText}>{(trend.viewCount || 0).toLocaleString()}</Text>
+              </View>
+              <View style={{ flex: 1 }} />
+              <TouchableOpacity onPress={handleScrapTrend}>
+                <Ionicons name={isScrapped ? "bookmark" : "bookmark-outline"} size={20} color={isScrapped ? "#FFC107" : "#666"} />
+              </TouchableOpacity>
             </View>
-            <View style={{ flex: 1 }} />
-            <TouchableOpacity onPress={handleScrapTrend}>
-              <Ionicons name={isScrapped ? "bookmark" : "bookmark-outline"} size={20} color={isScrapped ? "#FFC107" : "#666"} />
-            </TouchableOpacity>
-          </View>
 
-          {trend.description && (
-              <View style={styles.section}>
-                <Text style={styles.descriptionText}>{trend.description}</Text>
-              </View>
-          )}
-
-          {displayTags.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>태그</Text>
-                <View style={styles.tagsContainer}>
-                  {displayTags.map((tag, index) => (
-                      <View key={index} style={styles.tag}>
-                        <Text style={styles.tagText}>#{tag}</Text>
-                      </View>
-                  ))}
-                </View>
-              </View>
-          )}
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>트렌드 분석</Text>
-            <View style={styles.analysisGrid}>
-              <View style={styles.mainMetric}>
-                <Text style={styles.mainMetricValue}>
-                  {trend.score !== null && trend.score !== undefined ? trend.score.toString() : 'N/A'}
-                </Text>
-                <Text style={styles.mainMetricLabel}>트렌드 점수</Text>
-              </View>
-              <View style={styles.subMetricsContainer}>
-                <View style={styles.subMetric}>
-                  <Ionicons name="at-outline" size={24} color="#8B5CF6" />
-                  <Text style={styles.subMetricValue}>{(trend.snsMentions || 0).toLocaleString()}</Text>
-                  <Text style={styles.subMetricLabel}>SNS 언급량</Text>
-                </View>
-                <View style={styles.subMetric}>
-                  <Ionicons name="logo-youtube" size={24} color="#FF0000" />
-                  <Text style={styles.subMetricValue}>{(trend.youtubeTopView || 0).toLocaleString()}</Text>
-                  <Text style={styles.subMetricLabel}>최고 조회수</Text>
-                </View>
-                <View style={styles.subMetric}>
-                  <Ionicons name="trending-up-outline" size={24} color="#10B981" />
-                  <Text style={styles.subMetricValueWide}>{peakPeriodText}</Text>
-                  <Text style={styles.subMetricLabel}>피크 시기</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          {trend.recommendedNews && trend.recommendedNews.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>관련 뉴스</Text>
-                {trend.recommendedNews.slice(0, 3).map((news, index) => (
-                    <TouchableOpacity key={index} style={styles.newsItem} onPress={() => Linking.openURL(news.link)}>
-                      <Text style={styles.newsTitle} numberOfLines={1}>{news.title}</Text>
-                      <Ionicons name="open-outline" size={16} color="#666" />
-                    </TouchableOpacity>
-                ))}
-              </View>
-          )}
-
-          {trend.similarTrends && trend.similarTrends.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>비슷한 트렌드</Text>
-                {trend.similarTrends.slice(0, 3).map(similar => (
-                    <TouchableOpacity
-                        key={similar.trendId}
-                        style={styles.similarTrendItem}
-                        onPress={() => onNavigateToTrend(similar.trendId)}
-                    >
-                      <Text style={styles.trendName}>{similar.title}</Text>
-                      <Text style={styles.trendScore}>
-                        {similar.score !== null && similar.score !== undefined ? similar.score.toString() : 'N/A'}
-                      </Text>
-                    </TouchableOpacity>
-                ))}
-              </View>
-          )}
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>댓글 ({(trend.comments || []).length.toString()})</Text>
-            {trend.comments && trend.comments.length > 0 ? (
-                trend.comments.map((comment) => (
-                    <CommentItem
-                        key={`comment-${comment.commentId || comment.id}`}
-                        comment={comment}
-                        trendId={trend.id}
-                        currentUserId={user?.id}
-                        onDeleteSuccess={fetchTrendDetail}
-                    />
-                ))
-            ) : (
-                <View style={styles.commentPlaceholder}>
-                  <Text style={styles.commentPlaceholderText}>첫 번째 댓글을 남겨보세요!</Text>
+            {trend.description && (
+                <View style={styles.section}>
+                  <Text style={styles.descriptionText}>{trend.description}</Text>
                 </View>
             )}
-          </View>
-        </ScrollView>
 
-        <View style={styles.commentInputContainer}>
-          <TextInput style={styles.commentInput} placeholder="댓글을 입력하세요..." value={newComment} onChangeText={setNewComment} multiline />
-          <TouchableOpacity style={styles.commentSubmitButton} onPress={handleCommentSubmit}><Ionicons name="send" size={20} color="#FFFFFF" /></TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+            {displayTags.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>태그</Text>
+                  <View style={styles.tagsContainer}>
+                    {displayTags.map((tag, index) => (
+                        <View key={index} style={styles.tag}>
+                          <Text style={styles.tagText}>#{tag}</Text>
+                        </View>
+                    ))}
+                  </View>
+                </View>
+            )}
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>트렌드 분석</Text>
+              <View style={styles.analysisGrid}>
+                <View style={styles.mainMetric}>
+                  <Text style={styles.mainMetricValue}>
+                    {trend.score !== null && trend.score !== undefined ? trend.score.toString() : 'N/A'}
+                  </Text>
+                  <Text style={styles.mainMetricLabel}>트렌드 점수</Text>
+                </View>
+                <View style={styles.subMetricsContainer}>
+                  <View style={styles.subMetric}>
+                    <Ionicons name="at-outline" size={24} color="#8B5CF6" />
+                    <Text style={styles.subMetricValue}>{(trend.snsMentions || 0).toLocaleString()}</Text>
+                    <Text style={styles.subMetricLabel}>SNS 언급량</Text>
+                  </View>
+                  <View style={styles.subMetric}>
+                    <Ionicons name="logo-youtube" size={24} color="#FF0000" />
+                    <Text style={styles.subMetricValue}>{(trend.youtubeTopView || 0).toLocaleString()}</Text>
+                    <Text style={styles.subMetricLabel}>최고 조회수</Text>
+                  </View>
+                  <View style={styles.subMetric}>
+                    <Ionicons name="trending-up-outline" size={24} color="#10B981" />
+                    <Text style={styles.subMetricValueWide}>{peakPeriodText}</Text>
+                    <Text style={styles.subMetricLabel}>피크 시기</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            {trend.recommendedNews && trend.recommendedNews.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>관련 뉴스</Text>
+                  {trend.recommendedNews.slice(0, 3).map((news, index) => (
+                      <TouchableOpacity key={index} style={styles.newsItem} onPress={() => Linking.openURL(news.link)}>
+                        <Text style={styles.newsTitle} numberOfLines={1}>{news.title}</Text>
+                        <Ionicons name="open-outline" size={16} color="#666" />
+                      </TouchableOpacity>
+                  ))}
+                </View>
+            )}
+
+            {trend.similarTrends && trend.similarTrends.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>비슷한 트렌드</Text>
+                  {trend.similarTrends.slice(0, 3).map(similar => (
+                      <TouchableOpacity
+                          key={similar.trendId}
+                          style={styles.similarTrendItem}
+                          onPress={() => onNavigateToTrend(similar.trendId)}
+                      >
+                        <Text style={styles.trendName}>{similar.title}</Text>
+                        <Text style={styles.trendScore}>
+                          {similar.score !== null && similar.score !== undefined ? similar.score.toString() : 'N/A'}
+                        </Text>
+                      </TouchableOpacity>
+                  ))}
+                </View>
+            )}
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>댓글 ({(trend.comments || []).length.toString()})</Text>
+              {trend.comments && trend.comments.length > 0 ? (
+                  trend.comments.map((comment) => (
+                      <CommentItem
+                          key={`comment-${comment.commentId || comment.id}`}
+                          comment={comment}
+                          trendId={trend.id}
+                          currentUserId={user?.id}
+                          onDeleteSuccess={fetchTrendDetail}
+                      />
+                  ))
+              ) : (
+                  <View style={styles.commentPlaceholder}>
+                    <Text style={styles.commentPlaceholderText}>첫 번째 댓글을 남겨보세요!</Text>
+                  </View>
+              )}
+            </View>
+          </ScrollView>
+
+          <View style={styles.commentInputContainer}>
+            <TextInput style={styles.commentInput} placeholder="댓글을 입력하세요..." value={newComment} onChangeText={setNewComment} multiline />
+            <TouchableOpacity style={styles.commentSubmitButton} onPress={handleCommentSubmit}><Ionicons name="send" size={20} color="#FFFFFF" /></TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeAreaContainer: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
   container: { flex: 1, backgroundColor: "#FFFFFF" },
   centerContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
   errorText: { fontSize: 16, color: '#333', textAlign: 'center' },
@@ -411,15 +414,11 @@ const styles = StyleSheet.create({
   navBar: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     height: 56,
     borderBottomWidth: 1,
     borderBottomColor: "#F0F0F0",
-  },
-  navBarSide: {
-    width: 60,
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingHorizontal: 16,
   },
   navBarTitleContainer: {
     flex: 1,

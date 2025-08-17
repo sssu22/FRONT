@@ -51,7 +51,6 @@ function AppContent() {
     selectedPostId, setSelectedPostId,
     selectedTrendId, setSelectedTrendId,
     scrappedPosts, scrappedTrends,
-    togglePostScrap, toggleTrendScrap,
   } = useGlobalContext();
 
   const [authScreen, setAuthScreen] = useState<AuthScreen>("welcome");
@@ -134,7 +133,6 @@ function AppContent() {
     );
   }
 
-  // 👇 로그인 되어 있지 않을 때의 화면 전환 로직을 switch 문으로 변경
   if (!user) {
     switch (authScreen) {
       case "login":
@@ -158,7 +156,7 @@ function AppContent() {
       case "내 게시물":
         return <MyPostsTab onExperienceClick={handleExperienceClick} onEditExperience={handleEditClick} onDeleteExperience={handleDeleteExperience} searchQuery={searchQuery} />;
       case "프로필":
-        return <ProfileTab experiences={experiences} onExperienceClick={handleExperienceClick} onLogout={handleLogout} onShowScraps={() => setShowScraps(true)} user={user} scrappedCount={scrappedCount} />;
+        return <ProfileTab experiences={experiences} onExperienceClick={handleExperienceClick} onLogout={handleLogout} onShowScraps={() => setShowScraps(true)} scrappedCount={scrappedCount} />;
       default:
         return null;
     }
@@ -246,8 +244,6 @@ function AppContent() {
                 setShowScraps(false);
                 setSelectedTrendId(trendId);
               }}
-              onToggleExperienceScrap={togglePostScrap}
-              onToggleTrendScrap={toggleTrendScrap}
               onClose={() => setShowScraps(false)}
           />
         </Modal>

@@ -157,37 +157,57 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [likedPosts, fetchExperiences]);
 
+  // ✨ --- 수정된 부분 시작 --- ✨
   const togglePostScrap = useCallback(async (postId: number) => {
     const originalState = new Set(scrappedPosts);
-    const newState = new Set(scrappedPosts);
-    if (newState.has(postId)) newState.delete(postId);
-    else newState.add(postId);
-    setScrappedPosts(newState);
+    const isCurrentlyScrapped = originalState.has(postId);
+
+    // Optimistic UI Update for the Set
+    setScrappedPosts(prev => {
+      const next = new Set(prev);
+      if (isCurrentlyScrapped) next.delete(postId);
+      else next.add(postId);
+      return next;
+    });
+
+    // Optimistic UI Update for the main experiences array
+    setExperiences(prev => prev.map(exp => exp.id === postId ? { ...exp, scrapped: !isCurrentlyScrapped } : exp));
 
     try {
       await postsApi.scrapPost(postId);
-      await fetchExperiences();
     } catch (error) {
+      // Revert on error
       setScrappedPosts(originalState);
+      setExperiences(prev => prev.map(exp => exp.id === postId ? { ...exp, scrapped: isCurrentlyScrapped } : exp));
       Alert.alert("오류", "게시물 스크랩 처리에 실패했습니다.");
     }
-  }, [scrappedPosts, fetchExperiences]);
+  }, [scrappedPosts]);
 
   const toggleTrendScrap = useCallback(async (trendId: number) => {
     const originalState = new Set(scrappedTrends);
-    const newState = new Set(scrappedTrends);
-    if (newState.has(trendId)) newState.delete(trendId);
-    else newState.add(trendId);
-    setScrappedTrends(newState);
+    const isCurrentlyScrapped = originalState.has(trendId);
+
+    // Optimistic UI Update for the Set
+    setScrappedTrends(prev => {
+      const next = new Set(prev);
+      if (isCurrentlyScrapped) next.delete(trendId);
+      else next.add(trendId);
+      return next;
+    });
+
+    // Optimistic UI Update for the main trends array
+    setTrends(prev => prev.map(t => t.id === trendId ? { ...t, scrapped: !isCurrentlyScrapped } : t));
 
     try {
       await trendsApi.scrap(trendId);
-      await fetchTrends();
     } catch (error) {
+      // Revert on error
       setScrappedTrends(originalState);
+      setTrends(prev => prev.map(t => t.id === trendId ? { ...t, scrapped: isCurrentlyScrapped } : t));
       Alert.alert("오류", "트렌드 스크랩 처리에 실패했습니다.");
     }
-  }, [scrappedTrends, fetchTrends]);
+  }, [scrappedTrends]);
+  // ✨ --- 수정된 부분 끝 --- ✨
 
   const setLikeStatus = useCallback((postId: number, isLiked: boolean) => {
     setLikedPosts(prev => {

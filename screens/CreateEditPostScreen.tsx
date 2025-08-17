@@ -1,3 +1,5 @@
+// sssu22/front/FRONT-feature-1-/screens/CreateEditPostScreen.tsx
+
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
@@ -15,7 +17,7 @@ import {
 import { Button, Chip, Card, Provider, IconButton } from "react-native-paper";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import TrendSelector from "./TrendSelector";
-import { Trend } from "../types"; 
+import { Trend } from "../types";
 import { trendsApi } from "../utils/apiUtils";
 import { EmotionType, emotionLabels } from "../types";
 
@@ -68,18 +70,15 @@ interface Props {
 
 const getGuFromAddress = (address: string): string | null => {
   if (!address) return null;
-  const parts = address.split(" ");
-  if (parts[0] === "서울" && parts.length > 1 && parts[1].endsWith("구")) {
-    return parts[1];
-  }
-  return null;
+  const match = address.match(/([가-힣]+구)/);
+  return match ? match[1] : null;
 };
 
 export default function CreateEditPostScreen({
-  onSubmit,
-  onClose,
-  initialData = null,
-}: Props) {
+                                               onSubmit,
+                                               onClose,
+                                               initialData = null,
+                                             }: Props) {
   const [formData, setFormData] = useState({
     title: initialData?.title || "",
     date: initialData?.date || new Date().toISOString().split("T")[0],
@@ -99,29 +98,29 @@ export default function CreateEditPostScreen({
   const [trendsError, setTrendsError] = useState<string | null>(null);
 
   const fetchTrends = useCallback(
-    async (selectLatest = false) => {
-      setLoadingTrends(true);
-      setTrendsError(null);
-      try {
-        const list = await trendsApi.getAll();
-        setTrends(list);
-        let trendToSelect: Trend | null = null;
-        if (selectLatest && list.length > 0) {
-          trendToSelect = list.reduce((a, b) => (a.id > b.id ? a : b));
-        } else if (initialData) {
-          trendToSelect = list.find((t) => t.id === initialData.trendId) || null;
+      async (selectLatest = false) => {
+        setLoadingTrends(true);
+        setTrendsError(null);
+        try {
+          const list = await trendsApi.getAll();
+          setTrends(list);
+          let trendToSelect: Trend | null = null;
+          if (selectLatest && list.length > 0) {
+            trendToSelect = list.reduce((a, b) => (a.id > b.id ? a : b));
+          } else if (initialData) {
+            trendToSelect = list.find((t) => t.id === initialData.trendId) || null;
+          }
+          if (trendToSelect) setSelectedTrend(trendToSelect);
+          if (list.length === 0) {
+            setTrendsError("사용 가능한 트렌드가 없습니다. 먼저 트렌드를 생성해주세요.");
+          }
+        } catch {
+          setTrendsError("트렌드를 불러올 수 없습니다.");
+        } finally {
+          setLoadingTrends(false);
         }
-        if (trendToSelect) setSelectedTrend(trendToSelect);
-        if (list.length === 0) {
-          setTrendsError("사용 가능한 트렌드가 없습니다. 먼저 트렌드를 생성해주세요.");
-        }
-      } catch {
-        setTrendsError("트렌드를 불러올 수 없습니다.");
-      } finally {
-        setLoadingTrends(false);
-      }
-    },
-    [initialData]
+      },
+      [initialData]
   );
 
   useEffect(() => {
@@ -154,18 +153,22 @@ export default function CreateEditPostScreen({
     try {
       const response = await fetch(url, { headers: { Authorization: `KakaoAK ${KAKAO_API_KEY}` } });
       const data = await response.json();
+
       if (data.documents && data.documents.length > 0) {
-        const firstResult = data.documents[0];
-        const district = getGuFromAddress(firstResult.address_name);
-        if (district) {
-          return {
-            latitude: parseFloat(firstResult.y),
-            longitude: parseFloat(firstResult.x),
-            district: district,
-          };
+        for (const doc of data.documents) {
+          // ✅ 수정된 부분: '구' 정보를 더 정확한 region_2depth_name 필드에서 먼저 찾도록 변경합니다.
+          const district = doc.address?.region_2depth_name || getGuFromAddress(doc.address_name) || getGuFromAddress(doc.road_address_name);
+          if (district && district.endsWith('구')) {
+            return {
+              latitude: parseFloat(doc.y),
+              longitude: parseFloat(doc.x),
+              district: district,
+            };
+          }
         }
       }
-      Alert.alert("검색 실패", `"${query}"에 대한 서울시 내의 위치를 찾을 수 없습니다.\n다른 검색어로 시도해보세요.`);
+
+      Alert.alert("검색 실패", `"${query}"에 대한 서울시 내의 '구' 정보를 찾을 수 없습니다.\n더 구체적인 장소 이름으로 시도해보세요.`);
       return null;
     } catch (error) {
       console.error("Kakao API 호출 중 오류 발생:", error);
@@ -214,99 +217,96 @@ export default function CreateEditPostScreen({
   };
 
   return (
-    <Provider>
-      <SafeAreaView style={styles.root}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-          <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
-            <Card style={styles.card}>
-              <View style={styles.headerRow}>
-                <Text style={styles.title}>{initialData ? "게시글 수정하기" : "새 게시글 작성"}</Text>
-                <IconButton icon="close" onPress={onClose} />
-              </View>
-              {error && <Text style={styles.errorText}>{error}</Text>}
-
-              <Text style={styles.label}>트렌드 *</Text>
-              {loadingTrends ? (
-                <View style={styles.loadingContainer}><ActivityIndicator /><Text style={styles.loadingText}>트렌드 로딩 중...</Text></View>
-              ) : trendsError ? (
-                <View style={styles.errorContainer}><Text style={styles.errorText}>{trendsError}</Text><Button mode="text" compact onPress={() => fetchTrends()}>다시 시도</Button></View>
-              
-              // ====================================================================
-              // ✨ 1. JSX 수정: 선택된 트렌드 표시 UI를 이미지와 똑같이 변경
-              // ====================================================================
-              ) : selectedTrend ? (
-                <View style={styles.selectedTrendContainer}>
-                  <View style={styles.selectedTrendLeft}>
-                    <Text style={styles.hash}>#</Text>
-                    <View style={styles.infoContainer}>
-                      <Text style={styles.selectedTrendTitle} numberOfLines={1}>{selectedTrend.title}</Text>
-                      <Text style={styles.selectedTrendDesc} numberOfLines={1}>{selectedTrend.description}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.selectedTrendRight}>
-                    <View style={styles.categoryBadge}>
-                      <Text style={styles.categoryText}>{selectedTrend.category}</Text>
-                    </View>
-                    <TouchableOpacity style={styles.changeButton} onPress={() => setShowTrendSelector(true)}>
-                      <Text style={styles.changeButtonText}>변경</Text>
-                    </TouchableOpacity>
-                  </View>
+      <Provider>
+        <SafeAreaView style={styles.root}>
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+            <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
+              <Card style={styles.card}>
+                <View style={styles.headerRow}>
+                  <Text style={styles.title}>{initialData ? "게시글 수정하기" : "새 게시글 작성"}</Text>
+                  <IconButton icon="close" onPress={onClose} />
                 </View>
-              ) : (
-                <Button mode="outlined" onPress={() => setShowTrendSelector(true)} style={{paddingVertical: 8}}>트렌드를 선택하세요</Button>
-              )}
+                {error && <Text style={styles.errorText}>{error}</Text>}
 
-              <Text style={styles.label}>제목 *</Text>
-              <TextInput style={styles.input} placeholder="제목을 입력하세요" value={formData.title} onChangeText={(v) => setFormData((f) => ({ ...f, title: v }))} editable={!isSubmitting} />
+                <Text style={styles.label}>트렌드 *</Text>
+                {loadingTrends ? (
+                    <View style={styles.loadingContainer}><ActivityIndicator /><Text style={styles.loadingText}>트렌드 로딩 중...</Text></View>
+                ) : trendsError ? (
+                    <View style={styles.errorContainer}><Text style={styles.errorText}>{trendsError}</Text><Button mode="text" compact onPress={() => fetchTrends()}>다시 시도</Button></View>
 
-              <Text style={styles.label}>날짜 *</Text>
-              <TouchableOpacity onPress={() => !isSubmitting && setShowDatePicker(true)}>
-                <Text style={[styles.input, { paddingVertical: 12, color: "#191939" }]}>{formData.date}</Text>
-              </TouchableOpacity>
-              <DateTimePickerModal isVisible={showDatePicker} mode="date" date={new Date(formData.date + "T00:00:00")} onConfirm={handleConfirmDate} onCancel={() => setShowDatePicker(false)} display="spinner" />
+                ) : selectedTrend ? (
+                    <View style={styles.selectedTrendContainer}>
+                      <View style={styles.selectedTrendLeft}>
+                        <Text style={styles.hash}>#</Text>
+                        <View style={styles.infoContainer}>
+                          <Text style={styles.selectedTrendTitle} numberOfLines={1}>{selectedTrend.title}</Text>
+                          <Text style={styles.selectedTrendDesc} numberOfLines={1}>{selectedTrend.description}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.selectedTrendRight}>
+                        <View style={styles.categoryBadge}>
+                          <Text style={styles.categoryText}>{selectedTrend.category}</Text>
+                        </View>
+                        <TouchableOpacity style={styles.changeButton} onPress={() => setShowTrendSelector(true)}>
+                          <Text style={styles.changeButtonText}>변경</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                ) : (
+                    <Button mode="outlined" onPress={() => setShowTrendSelector(true)} style={{paddingVertical: 8}}>트렌드를 선택하세요</Button>
+                )}
 
-              <Text style={styles.label}>장소 *</Text>
-              <TextInput style={styles.input} placeholder="장소 입력 (예: 잠실, 숭실대)" value={formData.location} onChangeText={(v) => setFormData((f) => ({ ...f, location: v }))} editable={!isSubmitting} />
+                <Text style={styles.label}>제목 *</Text>
+                <TextInput style={styles.input} placeholder="제목을 입력하세요" value={formData.title} onChangeText={(v) => setFormData((f) => ({ ...f, title: v }))} editable={!isSubmitting} />
 
-              <Text style={styles.label}>감정 *</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
-                {emotionItems.map((opt) => (
-                  <Chip key={opt.value} style={[styles.emotionChip, formData.emotion === opt.value && styles.emotionChipSelected,]} textStyle={[styles.emotionChipText, formData.emotion === opt.value && styles.emotionChipTextSelected,]} onPress={() => !isSubmitting && setFormData((f) => ({ ...f, emotion: opt.value as EmotionType, }))} disabled={isSubmitting}>
-                    {opt.label}
-                  </Chip>
-                ))}
-              </ScrollView>
+                <Text style={styles.label}>날짜 *</Text>
+                <TouchableOpacity onPress={() => !isSubmitting && setShowDatePicker(true)}>
+                  <Text style={[styles.input, { paddingVertical: 12, color: "#191939" }]}>{formData.date}</Text>
+                </TouchableOpacity>
+                <DateTimePickerModal isVisible={showDatePicker} mode="date" date={new Date(formData.date + "T00:00:00")} onConfirm={handleConfirmDate} onCancel={() => setShowDatePicker(false)} display="spinner" />
 
-              <Text style={styles.label}>추가 태그 (최대 5개)</Text>
-              <View style={styles.tagRow}>
-                <TextInput style={[styles.input, { flex: 1, marginRight: 8 }]} placeholder="태그 입력 후 추가" value={currentTag} onChangeText={setCurrentTag} onSubmitEditing={handleAddTag} returnKeyType="done" editable={!isSubmitting} />
-                <Button mode="contained" compact onPress={handleAddTag} disabled={isSubmitting || tags.length >= 5}>추가</Button>
-              </View>
-              <View style={styles.tagsList}>
-                {tags.map((tag) => (<Chip key={tag} style={styles.tagChip} onClose={() => !isSubmitting && handleRemoveTag(tag)}>#{tag}</Chip>))}
-              </View>
+                <Text style={styles.label}>장소 *</Text>
+                <TextInput style={styles.input} placeholder="장소 입력 (예: 잠실, 숭실대)" value={formData.location} onChangeText={(v) => setFormData((f) => ({ ...f, location: v }))} editable={!isSubmitting} />
 
-              <Text style={styles.label}>상세 설명</Text>
-              <TextInput style={[styles.input, { height: 120, textAlignVertical: "top" }]} multiline placeholder="상세 경험을 적어주세요" value={formData.description} onChangeText={(v) => setFormData((f) => ({ ...f, description: v }))} editable={!isSubmitting} />
+                <Text style={styles.label}>감정 *</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+                  {emotionItems.map((opt) => (
+                      <Chip key={opt.value} style={[styles.emotionChip, formData.emotion === opt.value && styles.emotionChipSelected,]} textStyle={[styles.emotionChipText, formData.emotion === opt.value && styles.emotionChipTextSelected,]} onPress={() => !isSubmitting && setFormData((f) => ({ ...f, emotion: opt.value as EmotionType, }))} disabled={isSubmitting}>
+                        {opt.label}
+                      </Chip>
+                  ))}
+                </ScrollView>
 
-              <Button mode="contained" onPress={handleSubmit} style={styles.saveBtn} disabled={isSubmitting} loading={isSubmitting}>
-                {isSubmitting ? "저장 중..." : initialData ? "게시글 수정하기" : "게시글 저장하기"}
-              </Button>
-            </Card>
-          </ScrollView>
-        </KeyboardAvoidingView>
+                <Text style={styles.label}>추가 태그 (최대 5개)</Text>
+                <View style={styles.tagRow}>
+                  <TextInput style={[styles.input, { flex: 1, marginRight: 8 }]} placeholder="태그 입력 후 추가" value={currentTag} onChangeText={setCurrentTag} onSubmitEditing={handleAddTag} returnKeyType="done" editable={!isSubmitting} />
+                  <Button mode="contained" compact onPress={handleAddTag} disabled={isSubmitting || tags.length >= 5}>추가</Button>
+                </View>
+                <View style={styles.tagsList}>
+                  {tags.map((tag) => (<Chip key={tag} style={styles.tagChip} onClose={() => !isSubmitting && handleRemoveTag(tag)}>#{tag}</Chip>))}
+                </View>
 
-        {showTrendSelector && (
-          <TrendSelector 
-            selectedTrend={selectedTrend} 
-            onTrendSelect={(t) => { setSelectedTrend(t); setShowTrendSelector(false); }} 
-            onClose={() => setShowTrendSelector(false)} 
-            onTrendCreated={() => fetchTrends(true)}
-            onClear={() => setSelectedTrend(null)} 
-          />
-        )}
-      </SafeAreaView>
-    </Provider>
+                <Text style={styles.label}>상세 설명</Text>
+                <TextInput style={[styles.input, { height: 120, textAlignVertical: "top" }]} multiline placeholder="상세 경험을 적어주세요" value={formData.description} onChangeText={(v) => setFormData((f) => ({ ...f, description: v }))} editable={!isSubmitting} />
+
+                <Button mode="contained" onPress={handleSubmit} style={styles.saveBtn} disabled={isSubmitting} loading={isSubmitting}>
+                  {isSubmitting ? "저장 중..." : initialData ? "게시글 수정하기" : "게시글 저장하기"}
+                </Button>
+              </Card>
+            </ScrollView>
+          </KeyboardAvoidingView>
+
+          {showTrendSelector && (
+              <TrendSelector
+                  selectedTrend={selectedTrend}
+                  onTrendSelect={(t) => { setSelectedTrend(t); setShowTrendSelector(false); }}
+                  onClose={() => setShowTrendSelector(false)}
+                  onTrendCreated={() => fetchTrends(true)}
+                  onClear={() => setSelectedTrend(null)}
+              />
+          )}
+        </SafeAreaView>
+      </Provider>
   );
 }
 
@@ -386,10 +386,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     alignItems: "center",
   },
-  
-  // ====================================================================
-  // ✨ 2. StyleSheet 수정: 기존 스타일을 지우고 새 스타일로 교체
-  // ====================================================================
   selectedTrendContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',

@@ -19,7 +19,6 @@ export interface Comment {
   liked: boolean;
   userId?: string;
   authorProfileImageUrl? : string;
-  // 서버에서 다양한 필드명으로 올 수 있는 경우 대비
   name?: string;
   authorName?: string;
   commentId?: number;
@@ -31,7 +30,6 @@ export interface NewsItem {
   link: string;
 }
 
-// Trend와 TrendDetail을 하나로 통합한 타입
 export interface Trend {
   id: number;
   title: string;
@@ -40,7 +38,6 @@ export interface Trend {
   name?: string;
   score?: number;
   increaseScore?: number;
-  // 상세 정보 필드를 모두 선택적(optional)으로 추가
   previousScore?: number;
   likeCount?: number;
   postCount?: number;
@@ -49,7 +46,7 @@ export interface Trend {
   viewCount?: number;
   scrapped?: boolean;
   peakPeriod?: string;
-  tags?: string | string[]; // 배열도 지원
+  tags?: string | string[];
   liked?: boolean;
   comments?: Comment[];
   similarTrends?: {
@@ -58,13 +55,10 @@ export interface Trend {
     score: number;
   }[];
   recommendedNews? : NewsItem[];
-  // 서버에서 다양한 필드명으로 올 수 있는 경우를 대비
-  isLiked?: boolean;        // 서버에서 isLiked로 올 수도 있음
-  userLiked?: boolean;      // 서버에서 userLiked로 올 수도 있음
-  isScrapped?: boolean;     // 서버에서 isScrapped로 올 수도 있음
-  userScrapped?: boolean;   // 서버에서 userScrapped로 올 수도 있음
-
-  // 기존 Trend의 다른 속성들
+  isLiked?: boolean;
+  userLiked?: boolean;
+  isScrapped?: boolean;
+  userScrapped?: boolean;
   popularity?: number;
   createdAt?: string;
   prediction?: {
@@ -75,7 +69,7 @@ export interface Trend {
 }
 
 export interface Experience {
-  id: number; // ✅ string에서 number로 수정하여 타입 통일
+  id: number;
   title: string;
   date: string;
   location: string;
@@ -84,7 +78,7 @@ export interface Experience {
   description: string;
   trendScore: number;
   trendId: number;
-  district? : string;
+  locationDetail? : string; // ✅ district에서 locationDetail로 필드 이름 변경
   experienceDate? : string;
   trendName?: string;
   latitude?: number;
@@ -104,7 +98,7 @@ export interface SearchResult {
   type: "experience" | "trend";
 }
 export interface User {
-  id: string; // 또는 number일 수 있음, API 응답에 따라 조정
+  id: string;
   name: string;
   email: string;
   profileImageUrl?: string;

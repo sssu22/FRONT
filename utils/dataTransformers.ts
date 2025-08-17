@@ -1,5 +1,6 @@
 import { Experience, EmotionType, Comment } from '../types';
 
+// ✅ 1. 서버에서 내려올 수 있는 필드(locationDetail)를 인터페이스에 추가합니다.
 interface ServerPost {
   id: number;
   title?: string;
@@ -20,6 +21,7 @@ interface ServerPost {
   liked?: boolean;
   scrapped?: boolean;
   gu?: string;
+  locationDetail?: string; // locationDetail 필드 추가
 }
 
 const serverToApp = (post: ServerPost): Experience => {
@@ -41,7 +43,7 @@ const serverToApp = (post: ServerPost): Experience => {
     comments: post.comments || [],
     liked: post.liked,
     scrapped: post.scrapped,
-    district: post.gu,
+    locationDetail: post.gu || post.locationDetail,
   };
 };
 

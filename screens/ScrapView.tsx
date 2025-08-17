@@ -10,38 +10,34 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Card, IconButton, Chip } from "react-native-paper";
 import { useIsFocused } from "@react-navigation/native";
-
+import { useGlobalContext } from "../GlobalContext";
 import { Experience, Trend } from "../types";
-import { scrapsApi } from "../utils/apiUtils"; // ✅ API import
+import { scrapsApi } from "../utils/apiUtils";
 
-// Props 타입 (App.tsx와 일치하도록 수정)
 interface ScrapScreenProps {
   onExperienceClick: (experience: Experience) => void;
-  onTrendClick: (trendId: number) => void; // ✅ 트렌드 클릭 핸들러 추가
-  onToggleExperienceScrap: (experienceId: number) => void;
-  onToggleTrendScrap: (trendId: number) => void;
+  onTrendClick: (trendId: number) => void;
   onClose: () => void;
 }
 
 type FilterType = "all" | "experiences" | "trends";
 
-// 감정 이모지
 const emotionIcons: Record<string, string> = {
   joy: "😊", excitement: "🔥", nostalgia: "💭", surprise: "😲", love: "💖",
   regret: "😞", sadness: "😢", irritation: "😒", anger: "😡", embarrassment: "😳",
 };
 
-
 export default function ScrapScreen({
                                       onExperienceClick,
                                       onTrendClick,
-                                      onToggleExperienceScrap,
-                                      onToggleTrendScrap,
                                       onClose,
                                     }: ScrapScreenProps) {
+  const { togglePostScrap, toggleTrendScrap } = useGlobalContext();
+
   const [scrappedExperiences, setScrappedExperiences] = useState<Experience[]>([]);
   const [scrappedTrends, setScrappedTrends] = useState<Trend[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +46,6 @@ export default function ScrapScreen({
   const [filterType, setFilterType] = useState<FilterType>("all");
   const isFocused = useIsFocused();
 
-  // ✅ 화면이 보일 때마다 스크랩 데이터를 새로 불러옵니다.
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -63,6 +58,7 @@ export default function ScrapScreen({
         setScrappedTrends(trends);
       } catch (error) {
         console.error("스크랩 데이터 로딩 실패:", error);
+        Alert.alert("오류", "스크랩 데이터를 불러오는 데 실패했습니다.");
       } finally {
         setLoading(false);
       }
@@ -73,8 +69,16 @@ export default function ScrapScreen({
     }
   }, [isFocused]);
 
+  const handleTogglePostScrap = async (postId: number) => {
+    await togglePostScrap(postId);
+    setScrappedExperiences(prev => prev.filter(exp => exp.id !== postId));
+  };
 
-  // 검색 및 필터링 로직
+  const handleToggleTrendScrap = async (trendId: number) => {
+    await toggleTrendScrap(trendId);
+    setScrappedTrends(prev => prev.filter(trend => trend.id !== trendId));
+  };
+
   const filteredData = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
     if (!query) {
@@ -147,7 +151,7 @@ export default function ScrapScreen({
                             </View>
                             <IconButton
                                 icon="bookmark" size={20} iconColor="#f59e42"
-                                onPress={() => onToggleExperienceScrap(exp.id)}
+                                onPress={() => handleTogglePostScrap(exp.id)}
                             />
                           </TouchableOpacity>
                         </Card>
@@ -170,7 +174,7 @@ export default function ScrapScreen({
                             </View>
                             <IconButton
                                 icon="bookmark" size={20} iconColor="#f59e42"
-                                onPress={() => onToggleTrendScrap(trend.id)}
+                                onPress={() => handleToggleTrendScrap(trend.id)}
                             />
                           </TouchableOpacity>
                         </Card>
@@ -183,8 +187,6 @@ export default function ScrapScreen({
   );
 }
 
-
-// ... (기존 styles 코드는 그대로 사용)
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: "#fafafa", },
   topBar: { flexDirection: "row", alignItems: "center", marginBottom: 16, },

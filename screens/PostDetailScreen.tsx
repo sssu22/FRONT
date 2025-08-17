@@ -32,43 +32,18 @@ const normalizeComment = (comment: any): Comment => {
   };
 };
 
+// ✅ 1. CommentItem 컴포넌트 수정
 const CommentItem = ({
                        comment,
-                       postId,
-                       currentUserId,
-                       onActionSuccess,
+                       isMyComment,
+                       onLikePress, // 부모로부터 좋아요 처리 함수를 받음
+                       onDeletePress, // 부모로부터 삭제 처리 함수를 받음
                      }: {
   comment: Comment;
-  postId: number;
-  currentUserId: string | undefined;
-  onActionSuccess: () => void;
+  isMyComment: boolean;
+  onLikePress: () => void;
+  onDeletePress: () => void;
 }) => {
-  const isMyComment = String(comment.userId) === String(currentUserId);
-
-  const handleLikeComment = async () => {
-    try {
-      await commentsApi.like(postId, comment.id);
-      onActionSuccess();
-    } catch (error) {
-      Alert.alert("오류", "댓글 좋아요 처리에 실패했습니다.");
-    }
-  };
-
-  const handleDeleteComment = () => {
-    Alert.alert("댓글 삭제", "정말 이 댓글을 삭제하시겠습니까?", [
-      { text: "취소", style: "cancel" },
-      { text: "삭제", style: "destructive", onPress: async () => {
-          try {
-            await commentsApi.delete(postId, comment.id);
-            onActionSuccess();
-          } catch (error) {
-            Alert.alert("오류", "댓글 삭제에 실패했습니다.");
-          }
-        },
-      },
-    ]);
-  };
-
   return (
       <View style={styles.commentItem}>
         <Image
@@ -80,15 +55,15 @@ const CommentItem = ({
             <Text style={styles.commentUsername}>{comment.username}</Text>
             <Text style={styles.commentTime}>{comment.createdAt}</Text>
             {isMyComment && (
-                <TouchableOpacity style={styles.commentActionButton} onPress={handleDeleteComment}>
+                <TouchableOpacity style={styles.commentActionButton} onPress={onDeletePress}>
                   <Ionicons name="trash-outline" size={14} color="#E91E63" />
                 </TouchableOpacity>
             )}
           </View>
           <Text style={styles.commentContent}>{comment.content}</Text>
-          <TouchableOpacity style={styles.commentFooter} onPress={handleLikeComment}>
+          <TouchableOpacity style={styles.commentFooter} onPress={onLikePress}>
             <Ionicons
-                name={comment.liked ? "heart" : "heart-outline"}
+                name={comment.liked ? "heart" : "heart-outline"} // ✅ 이제 props의 liked 상태를 직접 사용
                 size={16}
                 color={comment.liked ? "#E91E63" : "#999"}
             />
@@ -103,6 +78,7 @@ const CommentItem = ({
   );
 };
 
+
 export default function PostDetailScreen({
                                            postId,
                                            onClose,
@@ -113,8 +89,7 @@ export default function PostDetailScreen({
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState("");
 
-  const fetchPostDetail = useCallback(async (isInitial = false) => {
-    if (isInitial) setLoading(true);
+  const fetchPostDetail = useCallback(async () => {
     try {
       const postData = await postsApi.getById(postId);
       const normalizedComments = (postData.comments || []).map(normalizeComment);
@@ -122,25 +97,85 @@ export default function PostDetailScreen({
     } catch (err: any) {
       Alert.alert("오류", "게시글을 불러오는 데 실패했습니다.");
       onClose();
-    } finally {
-      if (isInitial) setLoading(false);
     }
   }, [postId, onClose]);
 
   useEffect(() => {
-    fetchPostDetail(true);
+    setLoading(true);
+    fetchPostDetail().finally(() => setLoading(false));
   }, [fetchPostDetail]);
 
+
+  // 게시글 좋아요/스크랩 핸들러 (이전과 동일)
   const handleLike = async () => {
     if (!post) return;
-    await togglePostLike(post.id);
-    await fetchPostDetail();
+    const originalPost = { ...post };
+    const newLikedStatus = !post.liked;
+    const newLikeCount = post.liked ? (post.likeCount ?? 1) - 1 : (post.likeCount ?? 0) + 1;
+    setPost({ ...post, liked: newLikedStatus, likeCount: newLikeCount });
+    try {
+      await togglePostLike(post.id);
+    } catch (e) {
+      setPost(originalPost);
+      Alert.alert("오류", "좋아요 처리에 실패했습니다.");
+    }
   };
 
   const handleScrap = async () => {
     if (!post) return;
-    await togglePostScrap(post.id);
-    await fetchPostDetail();
+    const originalPost = { ...post };
+    const newScrappedStatus = !post.scrapped;
+    setPost({ ...post, scrapped: newScrappedStatus });
+    try {
+      await togglePostScrap(post.id);
+    } catch (e) {
+      setPost(originalPost);
+      Alert.alert("오류", "스크랩 처리에 실패했습니다.");
+    }
+  };
+
+  // ✅ 2. 댓글 좋아요 핸들러를 PostDetailScreen으로 이동
+  const handleCommentLikeToggle = async (commentId: number) => {
+    if (!post || !post.comments) return;
+
+    // 원본 상태 저장
+    const originalComments = [...post.comments];
+
+    // 화면 먼저 업데이트
+    const updatedComments = post.comments.map(c => {
+      if (c.id === commentId) {
+        const newLiked = !c.liked;
+        const newLikeCount = c.liked ? c.likeCount - 1 : c.likeCount + 1;
+        return { ...c, liked: newLiked, likeCount: newLikeCount };
+      }
+      return c;
+    });
+    setPost({ ...post, comments: updatedComments });
+
+    // API 호출
+    try {
+      await commentsApi.like(postId, commentId);
+    } catch (error) {
+      // 에러 발생 시 원래 상태로 복구
+      setPost({ ...post, comments: originalComments });
+      Alert.alert("오류", "댓글 좋아요 처리에 실패했습니다.");
+    }
+  };
+
+  // ✅ 3. 댓글 삭제 핸들러를 PostDetailScreen으로 이동
+  const handleCommentDelete = (commentId: number) => {
+    Alert.alert("댓글 삭제", "정말 이 댓글을 삭제하시겠습니까?", [
+      { text: "취소", style: "cancel" },
+      { text: "삭제", style: "destructive", onPress: async () => {
+          try {
+            await commentsApi.delete(postId, commentId);
+            await fetchPostDetail(); // 삭제 후에는 목록을 새로고침
+          } catch (error) {
+            Alert.alert("오류", "댓글 삭제에 실패했습니다.");
+          }
+        },
+      },
+    ]);
   };
 
   const handleCommentSubmit = async () => {
@@ -169,8 +204,6 @@ export default function PostDetailScreen({
     );
   }
 
-  const dateToDisplay = post.experienceDate || post.date;
-
   return (
       <SafeAreaView style={styles.safeAreaContainer}>
         <KeyboardAvoidingView
@@ -178,6 +211,7 @@ export default function PostDetailScreen({
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             keyboardVerticalOffset={0}
         >
+          {/* ... (네비게이션, 헤더, 본문 등 다른 UI는 모두 동일) ... */}
           <View style={styles.navBar}>
             <TouchableOpacity onPress={onClose} style={styles.navButton}>
               <Ionicons name="arrow-back" size={24} color="#333" />
@@ -189,7 +223,6 @@ export default function PostDetailScreen({
               <Ionicons name="share-social-outline" size={24} color="#333" />
             </TouchableOpacity>
           </View>
-
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
               <Text style={styles.emotion}>
@@ -198,7 +231,7 @@ export default function PostDetailScreen({
               <Text style={styles.title}>{post.title}</Text>
               <View style={styles.metaContainer}>
                 <Text style={styles.metaText}>
-                  {new Date(dateToDisplay).toLocaleDateString("ko-KR", {
+                  {new Date(post.date).toLocaleDateString("ko-KR", {
                     year: "numeric", month: "long", day: "numeric",
                   })}
                 </Text>
@@ -211,7 +244,7 @@ export default function PostDetailScreen({
               <TouchableOpacity style={styles.statItem} onPress={handleLike}>
                 <Ionicons name={post.liked ? "heart" : "heart-outline"} size={16} color={post.liked ? "#E91E63" : "#666"} />
                 <Text style={[styles.statText, { color: post.liked ? "#E91E63" : "#333" }]}>
-                  {post.likeCount.toLocaleString()}
+                  {(post.likeCount ?? 0).toLocaleString()}
                 </Text>
               </TouchableOpacity>
               <View style={styles.statItem}>
@@ -227,7 +260,6 @@ export default function PostDetailScreen({
                 <Ionicons name={post.scrapped ? "bookmark" : "bookmark-outline"} size={20} color={post.scrapped ? "#FFC107" : "#666"} />
               </TouchableOpacity>
             </View>
-
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>경험 이야기</Text>
               <Text style={styles.description}>{post.description}</Text>
@@ -261,12 +293,13 @@ export default function PostDetailScreen({
               <Text style={styles.sectionTitle}>댓글 ({(post.comments?.length || 0)})</Text>
               {post.comments && post.comments.length > 0 ? (
                   post.comments.map((c) => (
+                      // ✅ 4. CommentItem에 수정된 props를 전달합니다.
                       <CommentItem
                           key={c.id}
                           comment={c}
-                          postId={post.id}
-                          currentUserId={user?.id}
-                          onActionSuccess={() => fetchPostDetail(false)}
+                          isMyComment={String(c.userId) === String(user?.id)}
+                          onLikePress={() => handleCommentLikeToggle(c.id)}
+                          onDeletePress={() => handleCommentDelete(c.id)}
                       />
                   ))
               ) : (
@@ -297,6 +330,7 @@ export default function PostDetailScreen({
   );
 }
 
+// ... (styles는 기존과 동일)
 const styles = StyleSheet.create({
   safeAreaContainer: {
     flex: 1,

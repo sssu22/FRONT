@@ -1,5 +1,3 @@
-// sssu22/front/FRONT-feature-1-/screens/MyPostsTab.tsx
-
 import React, {
     useState,
     useEffect,
@@ -43,9 +41,8 @@ const emotionColors: Record<EmotionType, string> = {
     anger: "#DC143C", embarrassment: "#FFB6C1",
 };
 
-// ✅ 1. MapMarkerItem 타입의 필드 이름을 locationDetail로 변경합니다.
 type MapMarkerItem = {
-    locationDetail: string;
+    district: string;
     postCount: number;
     latitude: number;
     longitude: number;
@@ -71,7 +68,7 @@ export default function MyPostsTab({
                                        searchQuery,
                                    }: MyPostsTabProps) {
     const isFocused = useIsFocused();
-    const [allExperiences, setAllExperiences] = useState<Experience[]>([]);
+    const [experiences, setExperiences] = useState<Experience[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
 
     const [districtFilter, setDistrictFilter] = useState("");
@@ -88,44 +85,67 @@ export default function MyPostsTab({
 
     const [mapMarkers, setMapMarkers] = useState<MapMarkerItem[]>([]);
 
-    const loadInitialData = useCallback(async () => {
-        setLoading(true);
-        try {
-            const [posts, mapDataFromServer] = await Promise.all([
-                postsApi.getMyPosts({ size: 999 }),
-                postsApi.getMyPostMap()
-            ]);
-
-            setAllExperiences(posts);
-
-            // ✅ 2. 서버에서 받은 'district' 필드를 'locationDetail'로 변환하여 저장합니다.
-            const formattedMapData: MapMarkerItem[] = mapDataFromServer.map(item => ({
-                locationDetail: item.district,
-                postCount: item.postCount,
-                latitude: item.latitude,
-                longitude: item.longitude,
-            }));
-            setMapMarkers(formattedMapData);
-
-        } catch (err) {
-            console.error("내 게시물 탭 데이터 로딩 실패:", err);
-            setAllExperiences([]);
-            setMapMarkers([]);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
+    // 1. 지도 데이터는 화면에 처음 진입할 때 한 번만 불러옵니다.
     useEffect(() => {
         if (isFocused) {
-            loadInitialData();
+            const fetchMapData = async () => {
+                try {
+                    const mapDataFromServer = await postsApi.getMyPostMap();
+                    setMapMarkers(mapDataFromServer);
+                } catch (err) {
+                    console.error("지도 데이터 로딩 실패:", err);
+                }
+            };
+            fetchMapData();
         }
-    }, [isFocused, loadInitialData]);
+    }, [isFocused]);
 
+    // 2. 게시물 목록은 화면 진입 시, 그리고 'districtFilter'가 바뀔 때마다 서버에 새로 요청합니다.
+    useEffect(() => {
+        if (isFocused) {
+            let isActive = true; // 요청의 유효성을 추적하는 플래그
+
+            const fetchPosts = async () => {
+                setLoading(true);
+                try {
+                    const params = {
+                        size: 999,
+                        district: districtFilter || undefined,
+                    };
+
+                    const postsFromServer = await postsApi.getMyPosts(params);
+
+                    // 컴포넌트가 여전히 마운트되어 있고, 이 요청이 최신 요청일 경우에만 상태를 업데이트합니다.
+                    if (isActive) {
+                        setExperiences(postsFromServer);
+                    }
+                } catch (err) {
+                    if (isActive) {
+                        console.error("게시물 로딩 실패:", err);
+                        setExperiences([]);
+                    }
+                } finally {
+                    if (isActive) {
+                        setLoading(false);
+                    }
+                }
+            };
+
+            fetchPosts();
+
+            // 클린업 함수: 이 effect가 다시 실행되기 전에 호출됩니다.
+            // 이전 요청의 결과가 뒤늦게 도착하더라도 상태를 덮어쓰지 않도록 방지합니다.
+            return () => {
+                isActive = false;
+            };
+        }
+    }, [isFocused, districtFilter]); // districtFilter가 바뀔 때마다 이 useEffect가 실행됩니다.
+
+    // WebView에 마커를 로드하는 로직
     useEffect(() => {
         if (isWebViewReady && mapMarkers.length > 0 && webviewRef.current) {
             const mapData = mapMarkers.map(it => ({
-                locationDetail: it.locationDetail, // ✅ district -> locationDetail
+                district: it.district,
                 lat: it.latitude,
                 lng: it.longitude,
                 postCount: it.postCount,
@@ -135,19 +155,15 @@ export default function MyPostsTab({
     }, [isWebViewReady, mapMarkers]);
 
     const displayedExperiences = useMemo(() => {
-        let filtered = [...allExperiences];
+        // 서버에서 이미 district로 필터링된 목록을 받았으므로, 여기서는 다른 필터만 처리합니다.
+        let filtered = [...experiences];
         const trimmedQuery = searchQuery.trim().toLowerCase();
-
-        if (districtFilter) {
-            // ✅ 3. 필터링 로직에서 exp.district 대신 exp.locationDetail을 사용하도록 수정
-            filtered = filtered.filter(exp => normalizeDistrict(exp.locationDetail || '') === districtFilter);
-        }
 
         if (trimmedQuery) {
             filtered = filtered.filter(exp =>
                 exp.title.toLowerCase().includes(trimmedQuery) ||
                 (exp.description || "").toLowerCase().includes(trimmedQuery) ||
-                exp.tags.some(tag => tag.toLowerCase().includes(trimmedQuery))
+                (exp.tags && exp.tags.some(tag => tag.toLowerCase().includes(trimmedQuery)))
             );
         }
 
@@ -166,7 +182,7 @@ export default function MyPostsTab({
         });
 
         return filtered;
-    }, [allExperiences, districtFilter, searchQuery, emotionFilter, sortOption]);
+    }, [experiences, searchQuery, emotionFilter, sortOption]);
 
 
     const handleMessage = useCallback((event: any) => {
@@ -175,8 +191,7 @@ export default function MyPostsTab({
             if (data.type === 'MAP_READY') {
                 setIsWebViewReady(true);
             } else if (data.type === 'PIN_CLICK') {
-                // ✅ 4. WebView로부터 locationDetail을 받도록 수정합니다.
-                const clickedDistrict = normalizeDistrict(data.payload.locationDetail || "");
+                const clickedDistrict = normalizeDistrict(data.payload.district || "");
                 if (!clickedDistrict) return;
 
                 const newFilter = districtFilter === clickedDistrict ? "" : clickedDistrict;
@@ -223,7 +238,6 @@ export default function MyPostsTab({
         );
     };
 
-    // ✅ 5. WebView 내부 자바스크립트 코드에서도 district를 locationDetail로 모두 변경합니다.
     const webViewHtml = `
   <!DOCTYPE html><html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_API_KEY}"></script><style>html, body { margin: 0; padding: 0; width: 100%; height: 100%; } #map { width: 100%; height: 100%; background-color: #f0f0f0; } .custom-pin { position: relative; display: flex; justify-content: center; align-items: center; width: 32px; height: 32px; background: #EF4444; color: white; font-size: 13px; font-weight: bold; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.4); cursor: pointer; transition: all 0.2s; pointer-events: auto; } .custom-pin:hover { background: #DC2626; transform: rotate(-45deg) scale(1.1); } .custom-pin.selected { background: #7C3AED; } .pin-text { transform: rotate(45deg); }</style></head><body><div id="map"></div><script>
     let map = null; let overlays = [];
@@ -257,12 +271,12 @@ export default function MyPostsTab({
                 overlayContent.appendChild(textSpan);
 
                 overlayContent.onclick = function() { 
-                    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'PIN_CLICK', payload: { locationDetail: item.locationDetail } })); 
+                    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'PIN_CLICK', payload: { district: item.district } })); 
                 };
                 
                 const customOverlay = new kakao.maps.CustomOverlay({ position: position, content: overlayContent, yAnchor: 1.4, xAnchor: 0.5 });
                 customOverlay.setMap(map);
-                customOverlay.originalLocationDetail = item.locationDetail; // originalDistrict -> originalLocationDetail
+                customOverlay.originalDistrict = item.district;
                 overlays.push(customOverlay);
             } catch (error) { console.error('오버레이 생성 오류:', error); }
         });
@@ -277,7 +291,7 @@ export default function MyPostsTab({
     function updateSelection(payload) {
         const selectedDistrict = normalizeDistrict(payload.selectedDistrict || '');
         overlays.forEach(overlay => {
-            const itemDistrict = normalizeDistrict(overlay.originalLocationDetail); // originalDistrict -> originalLocationDetail
+            const itemDistrict = normalizeDistrict(overlay.originalDistrict);
             const isSelected = selectedDistrict && itemDistrict === selectedDistrict;
             overlay.getContent().className = isSelected ? 'custom-pin selected' : 'custom-pin';
         });

@@ -82,9 +82,6 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     fetchInitialData();
   }, [handleLogout]);
 
-  // ====================================================================
-  // ✨ 1. 스크랩 데이터만 별도로 불러오는 함수 추가
-  // ====================================================================
   const fetchScraps = useCallback(async () => {
     if (!user) return;
     try {
@@ -99,9 +96,6 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user]);
 
-  // ====================================================================
-  // ✨ 2. 기존 fetchExperiences 함수에서 스크랩 관련 로직 제거 (좋아요만 남김)
-  // ====================================================================
   const fetchExperiences = useCallback(async () => {
     if (!user) return;
     setLoadingExperiences(true);
@@ -120,9 +114,6 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user]);
 
-  // ====================================================================
-  // ✨ 3. 기존 fetchTrends 함수에서 스크랩 관련 로직 제거
-  // ====================================================================
   const fetchTrends = useCallback(async () => {
     if (!user) return;
     setLoadingTrends(true);
@@ -136,9 +127,6 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user]);
 
-  // ====================================================================
-  // ✨ 4. 사용자 정보가 업데이트되면(로그인 시) 스크랩 정보도 함께 불러오기
-  // ====================================================================
   useEffect(() => {
     if (user) {
       fetchExperiences();
@@ -150,7 +138,7 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
   const handleLogin = useCallback(async (creds: { email: string; password:string }) => {
     try {
       const loggedInUser = await authApi.login(creds);
-      // ✨ 수정된 부분: 로그인 성공 시 반환된 전체 사용자 정보로 상태를 업데이트합니다.
+      // ✨ 핵심 수정: authApi.login이 반환하는 완전한 사용자 정보로 상태를 업데이트합니다.
       setUser(loggedInUser);
     } catch (error) {
       Alert.alert("로그인 실패", "이메일 또는 비밀번호를 확인해주세요.");
@@ -184,9 +172,6 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [likedPosts, fetchExperiences]);
 
-  // ====================================================================
-  // ✨ 5. 게시글 스크랩 후, fetchScraps()를 호출하여 스크랩 목록 갱신
-  // ====================================================================
   const togglePostScrap = useCallback(async (postId: number) => {
     const originalState = new Set(scrappedPosts);
     const newState = new Set(scrappedPosts);
@@ -196,16 +181,13 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       await postsApi.scrapPost(postId);
-      await fetchScraps(); // 스크랩 목록과 개수를 다시 불러옵니다.
+      await fetchScraps();
     } catch (error) {
       setScrappedPosts(originalState);
       Alert.alert("오류", "게시물 스크랩 처리에 실패했습니다.");
     }
   }, [scrappedPosts, fetchScraps]);
 
-  // ====================================================================
-  // ✨ 6. 트렌드 스크랩 후, fetchScraps()를 호출하여 스크랩 목록 갱신
-  // ====================================================================
   const toggleTrendScrap = useCallback(async (trendId: number) => {
     const originalState = new Set(scrappedTrends);
     const newState = new Set(scrappedTrends);
@@ -215,8 +197,8 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       await trendsApi.scrap(trendId);
-      await fetchTrends(); // 트렌드 목록의 스크랩 상태(아이콘 모양) 업데이트
-      await fetchScraps(); // 스크랩 목록과 개수를 다시 불러옵니다.
+      await fetchTrends();
+      await fetchScraps();
     } catch (error) {
       setScrappedTrends(originalState);
       Alert.alert("오류", "트렌드 스크랩 처리에 실패했습니다.");

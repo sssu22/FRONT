@@ -78,7 +78,7 @@ export interface Experience {
   description: string;
   trendScore: number;
   trendId: number;
-  locationDetail? : string; // ✅ district에서 locationDetail로 필드 이름 변경
+  district? : string; // ✅ district에서 locationDetail로 필드 이름 변경
   experienceDate? : string;
   trendName?: string;
   latitude?: number;

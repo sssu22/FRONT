@@ -1,6 +1,6 @@
 // sssu22/front/FRONT-feature-4/screens/ProfileEdit.tsx
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
     View,
     Text,
@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { Button, Avatar } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import * as ImagePicker from 'expo-image-picker';
 import { usersApi, authApi } from "../utils/apiUtils";
 import { useGlobalContext } from "../GlobalContext";
 
@@ -27,6 +28,7 @@ interface ProfileEditProps {
 export default function ProfileEdit({ onClose }: ProfileEditProps) {
     const { user, setUser, handleLogout } = useGlobalContext();
 
+    const [isUploading, setIsUploading] = useState(false);
     const [username, setUsername] = useState(user?.name || "사용자");
     const [email] = useState(user?.email || "user@example.com");
     const [bio, setBio] = useState(user?.stateMessage || "트렌드를 탐험하는 것을 좋아합니다!");
@@ -43,6 +45,42 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
     const [confirmText, setConfirmText] = useState("");
     const [delLoading, setDelLoading] = useState(false);
 
+    // (사진 업로드 로직은 그대로 둠)
+    const handleSelectImage = useCallback(async () => {
+        if (!user || !setUser) return;
+
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert('권한 필요', '프로필 사진을 변경하려면 사진첩 접근 권한이 필요합니다.');
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.5,
+        });
+
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+            const asset = result.assets[0];
+            setIsUploading(true);
+            try {
+                await usersApi.updateProfileImage(asset);
+                const updatedUser = await authApi.validateToken();
+                setUser(updatedUser);
+                Alert.alert("성공", "프로필 사진이 변경되었습니다.");
+            } catch (error: any) {
+                const errorMessage = error.response?.data?.message || error.message || "알 수 없는 오류가 발생했습니다.";
+                console.error("프로필 사진 변경 실패:", errorMessage);
+                Alert.alert("오류", `프로필 사진 변경에 실패했습니다.\n(${errorMessage})`);
+            } finally {
+                setIsUploading(false);
+            }
+        }
+    }, [user, setUser]);
+
+    // ✅ **수정된 부분**: 프로필 정보 저장 로직을 원래의 안전한 방식으로 복구
     const handleSave = async () => {
         try {
             const updatedProfileData = {
@@ -53,8 +91,13 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
                 birth: birthday,
             };
 
+            // 1단계: 변경된 정보를 서버에 전송하여 저장 (PATCH)
             await usersApi.updateMe(updatedProfileData);
+
+            // 2단계: 저장이 완료된 후, 서버로부터 최신 전체 사용자 정보를 다시 가져옴 (GET)
             const fullyUpdatedUser = await authApi.validateToken();
+
+            // 3단계: 가져온 최신 정보로 앱의 전역 상태를 업데이트
             if (setUser) {
                 setUser(fullyUpdatedUser);
             }
@@ -150,12 +193,19 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
                 </View>
 
                 <View style={styles.profileImageSection}>
-                    {user?.profileImageUrl ? (
-                        <Avatar.Image size={80} source={{ uri: user.profileImageUrl }} />
-                    ) : (
-                        <Avatar.Text size={80} label={username.charAt(0)} />
-                    )}
-                    <Text style={styles.photoText}>프로필 사진은 프로필 탭에서 변경할 수 있습니다.</Text>
+                    <TouchableOpacity onPress={handleSelectImage} disabled={isUploading}>
+                        {user?.profileImageUrl ? (
+                            <Avatar.Image size={80} source={{ uri: user.profileImageUrl }} />
+                        ) : (
+                            <Avatar.Text size={80} label={username.charAt(0)} />
+                        )}
+                        {isUploading && (
+                            <View style={styles.uploadingOverlay}>
+                                <ActivityIndicator color="#fff" />
+                            </View>
+                        )}
+                    </TouchableOpacity>
+                    <Text style={styles.photoText}>사진을 눌러 프로필 이미지를 변경하세요.</Text>
                 </View>
 
                 <View style={styles.section}>
@@ -409,4 +459,11 @@ const styles = StyleSheet.create({
     primaryText: { color: "#fff", fontWeight: "700" },
     dangerSolidBtn: { backgroundColor: "#D32F2F" },
     dangerSolidText: { color: "#fff", fontWeight: "700" },
+    uploadingOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 40,
+    },
 });

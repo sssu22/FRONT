@@ -2,6 +2,7 @@
 
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 import { dataTransformers } from "./dataTransformers";
 import type { Experience, Trend, User } from "../types";
 
@@ -86,10 +87,9 @@ export const tokenManager = {
     },
 };
 
-// 2. Axios 인터셉터 (수정된 최종 버전)
+// Axios 인터셉터 (기존과 동일)
 axios.interceptors.request.use(
     async (config) => {
-        // public 요청이 아닌 경우에만 토큰을 추가합니다.
         if (!(config as any)._isPublic) {
             const token = await tokenManager.getToken();
             if (token) {
@@ -97,11 +97,9 @@ axios.interceptors.request.use(
             }
         }
 
-        // ✨ 수정된 부분 ✨
-        // FormData 요청 시 Content-Type 헤더를 직접 설정하지 않도록 하여
-        // axios가 자동으로 올바른 헤더(boundary 포함)를 생성하도록 합니다.
-        // updateProfileImage 함수에서 헤더를 직접 설정하므로 여기서는 특별한 처리를 하지 않습니다.
-        if (!config.headers['Content-Type'] && !(config.data instanceof FormData)) {
+        if (config.data instanceof FormData) {
+            delete config.headers['Content-Type'];
+        } else if (!config.headers['Content-Type']) {
             config.headers['Content-Type'] = 'application/json';
         }
 
@@ -110,7 +108,6 @@ axios.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-// Axios 응답 인터셉터
 axios.interceptors.response.use(
     (res) => res,
     async (err) => {
@@ -122,9 +119,9 @@ axios.interceptors.response.use(
 );
 
 
-// 3. API 함수들 (헤더 수동 설정 모두 제거)
+// API 함수들
 export const authApi = {
-    login: async (creds: { email: string; password: string }) => {
+    login: async (creds: { email: string; password: string }): Promise<User> => {
         try {
             const loginRes = await axios.post("/auth/login", creds, { _isPublic: true } as any);
             const accessToken = loginRes.data?.data?.accessToken || loginRes.data?.accessToken || loginRes.data?.token;
@@ -174,9 +171,6 @@ export const authApi = {
         const res = await axios.get("/users/me");
         const profileData = unwrap(res);
         if (!profileData) throw new Error("유효한 사용자 정보를 가져오지 못했습니다.");
-
-        // ✨ 핵심 수정: API가 반환하는 데이터가 User 타입임을 명시합니다.
-        // 이렇게 하면 다른 파일에서 이 함수를 사용할 때 profileImageUrl 등의 속성을 정확히 인식할 수 있습니다.
         return {
             id: profileData.id,
             email: profileData.email,
@@ -184,7 +178,6 @@ export const authApi = {
             ...profileData
         } as User;
     },
-
     requestPasswordReset: async (email: string) => {
         const res = await axios.post("/password/reset-request", { email }, { _isPublic: true } as any);
         return unwrap(res);
@@ -192,13 +185,8 @@ export const authApi = {
 };
 
 export const usersApi = {
-    updateMe: async (profileData: {
-        name: string;
-        address: string;
-        stateMessage: string;
-        locationTracing: boolean;
-        birth: string;
-    }) => {
+    // ✅ **수정된 부분**: `Partial<User>` 타입을 사용하여 프로필 이미지 URL을 포함한 모든 사용자 정보를 부분적으로 업데이트할 수 있도록 변경
+    updateMe: async (profileData: Partial<User>): Promise<User> => {
         const res = await axios.patch("/users/me", profileData);
         return unwrap(res);
     },
@@ -210,26 +198,29 @@ export const usersApi = {
         const res = await axios.delete("/users/me");
         return unwrap(res);
     },
-    updateProfileImage: async (asset: { uri: string; fileName?: string | null; mimeType?: string | null }) => {
+    // 이 함수는 이미지 업로드 후 URL '문자열'만 반환합니다.
+    updateProfileImage: async (asset: { uri: string; fileName?: string | null; mimeType?: string | null }): Promise<string> => {
         const formData = new FormData();
         const uri = asset.uri;
         const fileName = asset.fileName || uri.split('/').pop() || 'profile.jpg';
         const type = asset.mimeType || `image/${fileName.split('.').pop()}`;
 
         formData.append('file', {
-            uri: uri,
+            uri: Platform.OS === 'android' ? uri : uri.replace('file://', ''),
             name: fileName,
             type: type,
         } as any);
 
-        // ✨ 핵심 수정 ✨
-        // 헤더를 직접 설정하지 않고 전역 axios 인스턴스를 사용하여
-        // 인터셉터가 올바르게 헤더를 처리하도록 합니다.
         const res = await axios.post("/users/profile-image", formData);
-        return unwrap(res);
+        const unwrappedResponse = unwrap<string>(res);
+        if (typeof unwrappedResponse !== 'string') {
+            throw new Error('API did not return a valid URL string');
+        }
+        return unwrappedResponse;
     },
 };
 
+// ... (trendsApi, postsApi, commentsApi, scrapsApi, initializeApi는 기존과 동일)
 export const trendsApi = {
     getAll: async (): Promise<Trend[]> => {
         const res = await axios.get("/trends");
@@ -282,8 +273,8 @@ export const trendsApi = {
 };
 
 export const postsApi = {
-    getMyPosts: async (params?: { sort?: string; emotion?: string; page?: number; size?: number; gu?: string }): Promise<Experience[]> => {
-        const q = { page: params?.page ?? 1, size: params?.size ?? 10, sort: params?.sort ?? "latest", emotion: params?.emotion ?? "all", ...(params?.gu && { gu: params.gu }), };
+    getMyPosts: async (params?: { sort?: string; emotion?: string; page?: number; size?: number; district?: string }): Promise<Experience[]> => {
+        const q = { page: params?.page ?? 1, size: params?.size ?? 10, sort: params?.sort ?? "latest", emotion: params?.emotion ?? "all", ...(params?.district && { district: params.district }), };
         const res = await axios.get("/users/me/posts", { params: q });
         const list = res.data?.data?.list || res.data?.data || res.data?.list || [];
         return (Array.isArray(list) ? list : []).map(dataTransformers.serverToApp);
@@ -294,8 +285,8 @@ export const postsApi = {
         const list = res.data?.data?.list || [];
         return (Array.isArray(list) ? list : []).map(dataTransformers.serverToApp);
     },
-    getAll: async (params?: { sort?: string; emotion?: string; page?: number; size?: number; gu?: string }): Promise<Experience[]> => {
-        const q = { page: params?.page ?? 1, size: params?.size ?? 10, sort: params?.sort ?? "latest", emotion: params?.emotion ?? "all", ...(params?.gu && { gu: params.gu }), };
+    getAll: async (params?: { sort?: string; emotion?: string; page?: number; size?: number; district?: string }): Promise<Experience[]> => {
+        const q = { page: params?.page ?? 1, size: params?.size ?? 10, sort: params?.sort ?? "latest", emotion: params?.emotion ?? "all", ...(params?.district && { district: params.district }), };
         const res = await axios.get("/posts", { params: q });
         const list = res.data?.data?.list || [];
         return (Array.isArray(list) ? list : []).map(dataTransformers.serverToApp);

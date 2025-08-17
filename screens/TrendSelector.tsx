@@ -1,3 +1,5 @@
+// sssu22/front/FRONT-feature-2-/screens/TrendSelector.tsx
+
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   View,
@@ -9,13 +11,13 @@ import {
   Modal,
   Dimensions,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Feather, MaterialIcons, Ionicons } from "@expo/vector-icons";
 import { Button } from "react-native-paper";
 import { trendsApi } from "../utils/apiUtils";
 import { Trend } from "../types";
 
-// ✨ Props 인터페이스에 onClear 추가
 interface Props {
   selectedTrend: Trend | null;
   onTrendSelect: (t: Trend) => void;
@@ -26,14 +28,13 @@ interface Props {
 
 const MAX_POPUP_WIDTH = Math.min(Dimensions.get("window").width - 32, 560);
 
-// ✨ onClear를 props로 받도록 수정
 export default function TrendSelector({
-  selectedTrend,
-  onTrendSelect,
-  onClose,
-  onTrendCreated,
-  onClear,
-}: Props) {
+                                        selectedTrend,
+                                        onTrendSelect,
+                                        onClose,
+                                        onTrendCreated,
+                                        onClear,
+                                      }: Props) {
   const [trends, setTrends] = useState<Trend[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -48,7 +49,7 @@ export default function TrendSelector({
     음식: "FOOD", 라이프스타일: "LIFESTYLE", 문화: "CULTURE",
     건강: "HEALTH", 투자: "INVESTMENT", 소설: "SOCIAL", 기타: "ETC",
   };
-  
+
   const fetchTrends = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -73,70 +74,60 @@ export default function TrendSelector({
   const filtered = useMemo(() => {
     if (!Array.isArray(trends)) return [];
     return trends
-      .filter((t) => {
-        const name = t.name || t.title || "";
-        const desc = t.description || "";
-        const q = search.toLowerCase();
-        return name.toLowerCase().includes(q) || desc.toLowerCase().includes(q);
-      })
-      .filter((t) => category === "전체" || t.category === category)
-      .sort((a, b) => (b.score || 0) - (a.score || 0));
+        .filter((t) => {
+          const name = t.name || t.title || "";
+          const desc = t.description || "";
+          const q = search.toLowerCase();
+          return name.toLowerCase().includes(q) || desc.toLowerCase().includes(q);
+        })
+        .filter((t) => category === "전체" || t.category === category)
+        .sort((a, b) => (b.score || 0) - (a.score || 0));
   }, [trends, search, category]);
 
   const handleTrendSelect = (t: Trend) => {
     onTrendSelect({ ...t, name: t.name || t.title });
   };
-  
-  const renderContent = () => {
-    // ... 이전과 동일한 renderContent 함수 ...
-    if (isLoading) return <ActivityIndicator size="large" color="#7C3AED" style={{ marginTop: 40 }} />;
-    if (filtered.length === 0) return (
-      <View style={styles.noResultContainer}>
-        <Feather name="search" size={32} color="#D1D5DB" />
-        <Text style={styles.noResultText}>{search ? '검색 결과가 없습니다' : '표시할 트렌드가 없습니다'}</Text>
-      </View>
-    );
-    return filtered.map((t, index) => {
-      const name = t.name || t.title || `#${t.id}`;
-      const active = selectedTrend?.id === t.id;
-      let rankBadgeStyle = {};
-      let rankTextStyle = {};
-      if (index < 3) {
-        rankBadgeStyle = styles.rankBadgeTop3;
-        rankTextStyle = styles.rankTextTop3;
-      }
-      return (
-        <TouchableOpacity key={t.id} style={[styles.trendCard, active && styles.trendCardActive]} onPress={() => handleTrendSelect(t)}>
-          <View style={styles.trendCardLeft}>
-            <View style={[styles.rankBadge, rankBadgeStyle]}><Text style={[styles.rankText, rankTextStyle]}>#{index + 1}</Text></View>
-            <View style={styles.trendInfo}>
-              <Text style={styles.trendName}>{name}</Text>
-              {t.description && <Text numberOfLines={1} style={styles.trendDesc}>{t.description}</Text>}
-            </View>
-          </View>
-          <View style={styles.trendCardRight}>
-            <Text style={styles.trendCategory}>{t.category}</Text>
-            <Text style={styles.trendScore}>{t.score || 0}</Text>
-          </View>
-        </TouchableOpacity>
-      );
-    });
+
+  const handleCreateTrend = async () => {
+    if (!newTrend.title.trim() || !newTrend.description.trim()) {
+      setCreateError("제목과 설명을 모두 입력해주세요.");
+      return;
+    }
+    setCreateError("");
+    setIsCreating(true);
+    try {
+      // ====================================================================
+      // ✨ 여기가 수정된 부분입니다: 'categoryName' -> 'category'
+      // ====================================================================
+      await trendsApi.create({
+        title: newTrend.title,
+        description: newTrend.description,
+        category: categoryKeyMap[newTrend.category] || "ETC",
+      });
+      Alert.alert("성공", "새로운 트렌드가 생성되었습니다.");
+      setShowCreateForm(false);
+      setNewTrend({ title: "", description: "", category: "음식" });
+      await onTrendCreated();
+      await fetchTrends();
+    } catch (error) {
+      console.error("트렌드 생성 실패:", error);
+      setCreateError("트렌드 생성에 실패했습니다. 다시 시도해주세요.");
+    } finally {
+      setIsCreating(false);
+    }
   };
 
-  return (
-    <Modal visible transparent animationType="fade">
-      <View style={styles.dimmed}>
-        <View style={[styles.popup, { maxWidth: MAX_POPUP_WIDTH }]}>
-          <View style={styles.popupHeader}>
-            <View>
-              <Text style={styles.popupTitle}>트렌드 선택</Text>
-              <Text style={styles.popupSubtitle}>경험과 관련된 트렌드를 선택하거나 새로 만드세요</Text>
-            </View>
-            <TouchableOpacity onPress={onClose}><Ionicons name="close" size={24} color="#6B7280" /></TouchableOpacity>
+  const renderTrendSelection = () => (
+      <>
+        <View style={styles.popupHeader}>
+          <View>
+            <Text style={styles.popupTitle}>트렌드 선택</Text>
+            <Text style={styles.popupSubtitle}>경험과 관련된 트렌드를 선택하거나 새로 만드세요</Text>
           </View>
-
-          <View style={{ flex: 1, flexDirection: 'column' }}>
-            {selectedTrend && (
+          <TouchableOpacity onPress={onClose}><Ionicons name="close" size={24} color="#6B7280" /></TouchableOpacity>
+        </View>
+        <View style={{ flex: 1, flexDirection: 'column' }}>
+          {selectedTrend && (
               <View style={styles.selectedTrendContainer}>
                 <Text style={styles.selectedTrendText} numberOfLines={1}>
                   {selectedTrend.name || selectedTrend.title}
@@ -145,41 +136,125 @@ export default function TrendSelector({
                   <Ionicons name="close-circle" size={22} color="#9333EA" />
                 </TouchableOpacity>
               </View>
-            )}
-            <View style={styles.searchRow}>
-              <Feather name="search" size={20} color="#9E9E9E" />
-              <TextInput style={styles.searchInput} placeholder="트렌드 검색..." value={search} onChangeText={setSearch} />
-              {search.length > 0 && <TouchableOpacity onPress={() => setSearch("")}><Ionicons name="close-circle" size={20} color="#9E9E9E" /></TouchableOpacity>}
-            </View>
-            <View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
-                {categories.map((cat) => (
+          )}
+          <View style={styles.searchRow}>
+            <Feather name="search" size={20} color="#9E9E9E" />
+            <TextInput style={styles.searchInput} placeholder="트렌드 검색..." value={search} onChangeText={setSearch} />
+            {search.length > 0 && <TouchableOpacity onPress={() => setSearch("")}><Ionicons name="close-circle" size={20} color="#9E9E9E" /></TouchableOpacity>}
+          </View>
+          <View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
+              {categories.map((cat) => (
                   <TouchableOpacity key={cat} onPress={() => setCategory(cat)} style={[styles.chip, cat === category && styles.chipActive]}>
                     {cat === category && <MaterialIcons name="check" size={14} color="#fff" style={{marginRight: 4}}/>}
                     <Text style={cat === category ? styles.chipTextActive : styles.chipText}>{cat}</Text>
                   </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-            <TouchableOpacity style={styles.addNewButton} onPress={() => setShowCreateForm(true)}>
-              <Ionicons name="add" size={22} color="#7C3AED" />
-              <Text style={styles.addNewText}>새 트렌드 만들기</Text>
-            </TouchableOpacity>
-            <View style={styles.listHeader}>
-              <Text style={styles.listTitle}>인기 트렌드</Text>
-              <Text style={styles.listCount}>{filtered.length}개</Text>
-            </View>
-            <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
-              {renderContent()}
+              ))}
             </ScrollView>
           </View>
+          <TouchableOpacity style={styles.addNewButton} onPress={() => setShowCreateForm(true)}>
+            <Ionicons name="add" size={22} color="#7C3AED" />
+            <Text style={styles.addNewText}>새 트렌드 만들기</Text>
+          </TouchableOpacity>
+          <View style={styles.listHeader}>
+            <Text style={styles.listTitle}>인기 트렌드</Text>
+            <Text style={styles.listCount}>{filtered.length}개</Text>
+          </View>
+          <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
+            {isLoading ? <ActivityIndicator size="large" color="#7C3AED" style={{ marginTop: 40 }} /> :
+                filtered.length === 0 ? (
+                    <View style={styles.noResultContainer}>
+                      <Feather name="search" size={32} color="#D1D5DB" />
+                      <Text style={styles.noResultText}>{search ? '검색 결과가 없습니다' : '표시할 트렌드가 없습니다'}</Text>
+                    </View>
+                ) : filtered.map((t, index) => {
+                  const name = t.name || t.title || `#${t.id}`;
+                  const active = selectedTrend?.id === t.id;
+                  let rankBadgeStyle = {};
+                  let rankTextStyle = {};
+                  if (index < 3) {
+                    rankBadgeStyle = styles.rankBadgeTop3;
+                    rankTextStyle = styles.rankTextTop3;
+                  }
+                  return (
+                      <TouchableOpacity key={t.id} style={[styles.trendCard, active && styles.trendCardActive]} onPress={() => handleTrendSelect(t)}>
+                        <View style={styles.trendCardLeft}>
+                          <View style={[styles.rankBadge, rankBadgeStyle]}><Text style={[styles.rankText, rankTextStyle]}>#{index + 1}</Text></View>
+                          <View style={styles.trendInfo}>
+                            <Text style={styles.trendName}>{name}</Text>
+                            {t.description && <Text numberOfLines={1} style={styles.trendDesc}>{t.description}</Text>}
+                          </View>
+                        </View>
+                        <View style={styles.trendCardRight}>
+                          <Text style={styles.trendCategory}>{t.category}</Text>
+                          <Text style={styles.trendScore}>{t.score || 0}</Text>
+                        </View>
+                      </TouchableOpacity>
+                  );
+                })
+            }
+          </ScrollView>
+        </View>
+      </>
+  );
+
+  const renderCreateForm = () => (
+      <View style={styles.createPopup}>
+        <View style={styles.popupHeader}>
+          <Text style={styles.popupTitle}>새 트렌드 만들기</Text>
+          <TouchableOpacity onPress={() => setShowCreateForm(false)}><Ionicons name="close" size={24} color="#6B7280" /></TouchableOpacity>
+        </View>
+        {!!createError && <Text style={styles.errorText}>{createError}</Text>}
+        <Text style={styles.label}>제목</Text>
+        <TextInput
+            style={styles.input}
+            placeholder="트렌드 제목을 입력하세요"
+            value={newTrend.title}
+            onChangeText={(text) => setNewTrend(p => ({ ...p, title: text }))}
+        />
+        <Text style={styles.label}>설명</Text>
+        <TextInput
+            style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+            placeholder="트렌드에 대한 간단한 설명"
+            value={newTrend.description}
+            onChangeText={(text) => setNewTrend(p => ({ ...p, description: text }))}
+            multiline
+        />
+        <Text style={styles.label}>카테고리</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
+          {Object.keys(categoryKeyMap).map((cat) => (
+              <TouchableOpacity
+                  key={cat}
+                  style={[styles.chip, newTrend.category === cat && styles.chipActive]}
+                  onPress={() => setNewTrend(p => ({ ...p, category: cat }))}
+              >
+                <Text style={newTrend.category === cat ? styles.chipTextActive : styles.chipText}>{cat}</Text>
+              </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        <View style={styles.buttonRow}>
+          <Button mode="outlined" onPress={() => setShowCreateForm(false)} disabled={isCreating}>
+            취소
+          </Button>
+          <Button mode="contained" onPress={handleCreateTrend} loading={isCreating} disabled={isCreating}>
+            생성하기
+          </Button>
         </View>
       </View>
-    </Modal>
+  );
+
+  return (
+      <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+        <View style={styles.dimmed}>
+          <View style={[styles.popup, { maxWidth: MAX_POPUP_WIDTH }]}>
+            {showCreateForm ? renderCreateForm() : renderTrendSelection()}
+          </View>
+        </View>
+      </Modal>
   );
 }
 
-// ✨ StyleSheet도 onClear 기능에 맞춰 최종 수정되었습니다.
 const styles = StyleSheet.create({
   dimmed: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center", padding: 16 },
   popup: { width: "100%", backgroundColor: "#fff", borderRadius: 20, padding: 20, maxHeight: "85%", flexDirection: 'column', flex: 1 },
@@ -231,4 +306,29 @@ const styles = StyleSheet.create({
   noResultText: { fontSize: 16, fontWeight: "600", color: "#374151", marginTop: 12 },
   rankBadgeTop3: { backgroundColor: '#7C3AED' },
   rankTextTop3: { color: '#FFFFFF' },
+  createPopup: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
+    maxHeight: "85%",
+  },
+  errorText: { color: '#ef4444', marginBottom: 12, textAlign: 'center' },
+  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 6, marginTop: 8 },
+  input: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    marginBottom: 12,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 16,
+    gap: 8,
+  },
 });

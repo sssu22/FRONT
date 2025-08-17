@@ -3,7 +3,7 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
 import { Experience, Trend, User } from './types';
-import { authApi, postsApi, trendsApi, initializeApi } from './utils/apiUtils';
+import { authApi, postsApi, trendsApi, scrapsApi, initializeApi } from './utils/apiUtils';
 
 interface GlobalContextType {
   user: User | null;
@@ -82,19 +82,36 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     fetchInitialData();
   }, [handleLogout]);
 
+  // ====================================================================
+  // ✨ 1. 스크랩 데이터만 별도로 불러오는 함수 추가
+  // ====================================================================
+  const fetchScraps = useCallback(async () => {
+    if (!user) return;
+    try {
+      const [scrappedPostsData, scrappedTrendsData] = await Promise.all([
+        scrapsApi.getMyScrappedPosts(),
+        scrapsApi.getMyScrappedTrends(),
+      ]);
+      setScrappedPosts(new Set(scrappedPostsData.map(p => p.id)));
+      setScrappedTrends(new Set(scrappedTrendsData.map(t => t.id)));
+    } catch (error) {
+      console.error("스크랩 데이터 로딩 실패:", error);
+    }
+  }, [user]);
+
+  // ====================================================================
+  // ✨ 2. 기존 fetchExperiences 함수에서 스크랩 관련 로직 제거 (좋아요만 남김)
+  // ====================================================================
   const fetchExperiences = useCallback(async () => {
     if (!user) return;
     setLoadingExperiences(true);
     try {
       const data = await postsApi.getMyPosts();
       setExperiences(data);
-      const newScrappedPosts = new Set<number>();
       const newLikedPosts = new Set<number>();
       data.forEach(post => {
-        if (post.scrapped) newScrappedPosts.add(post.id);
         if (post.liked) newLikedPosts.add(post.id);
       });
-      setScrappedPosts(newScrappedPosts);
       setLikedPosts(newLikedPosts);
     } catch (error) {
       console.error("게시글 목록 로딩 실패:", error);
@@ -103,17 +120,15 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user]);
 
+  // ====================================================================
+  // ✨ 3. 기존 fetchTrends 함수에서 스크랩 관련 로직 제거
+  // ====================================================================
   const fetchTrends = useCallback(async () => {
     if (!user) return;
     setLoadingTrends(true);
     try {
       const data = await trendsApi.getAll();
       setTrends(data);
-      const newScrappedTrends = new Set<number>();
-      data.forEach(trend => {
-        if (trend.scrapped) newScrappedTrends.add(trend.id);
-      });
-      setScrappedTrends(newScrappedTrends);
     } catch (error) {
       console.error("트렌드 목록 로딩 실패:", error);
     } finally {
@@ -121,9 +136,21 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user]);
 
-  const handleLogin = useCallback(async (creds: { email: string; password: string }) => {
+  // ====================================================================
+  // ✨ 4. 사용자 정보가 업데이트되면(로그인 시) 스크랩 정보도 함께 불러오기
+  // ====================================================================
+  useEffect(() => {
+    if (user) {
+      fetchExperiences();
+      fetchTrends();
+      fetchScraps();
+    }
+  }, [user, fetchExperiences, fetchTrends, fetchScraps]);
+
+  const handleLogin = useCallback(async (creds: { email: string; password:string }) => {
     try {
       const loggedInUser = await authApi.login(creds);
+      // ✨ 수정된 부분: 로그인 성공 시 반환된 전체 사용자 정보로 상태를 업데이트합니다.
       setUser(loggedInUser);
     } catch (error) {
       Alert.alert("로그인 실패", "이메일 또는 비밀번호를 확인해주세요.");
@@ -157,57 +184,44 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [likedPosts, fetchExperiences]);
 
-  // ✨ --- 수정된 부분 시작 --- ✨
+  // ====================================================================
+  // ✨ 5. 게시글 스크랩 후, fetchScraps()를 호출하여 스크랩 목록 갱신
+  // ====================================================================
   const togglePostScrap = useCallback(async (postId: number) => {
     const originalState = new Set(scrappedPosts);
-    const isCurrentlyScrapped = originalState.has(postId);
-
-    // Optimistic UI Update for the Set
-    setScrappedPosts(prev => {
-      const next = new Set(prev);
-      if (isCurrentlyScrapped) next.delete(postId);
-      else next.add(postId);
-      return next;
-    });
-
-    // Optimistic UI Update for the main experiences array
-    setExperiences(prev => prev.map(exp => exp.id === postId ? { ...exp, scrapped: !isCurrentlyScrapped } : exp));
+    const newState = new Set(scrappedPosts);
+    if (newState.has(postId)) newState.delete(postId);
+    else newState.add(postId);
+    setScrappedPosts(newState);
 
     try {
       await postsApi.scrapPost(postId);
+      await fetchScraps(); // 스크랩 목록과 개수를 다시 불러옵니다.
     } catch (error) {
-      // Revert on error
       setScrappedPosts(originalState);
-      setExperiences(prev => prev.map(exp => exp.id === postId ? { ...exp, scrapped: isCurrentlyScrapped } : exp));
       Alert.alert("오류", "게시물 스크랩 처리에 실패했습니다.");
     }
-  }, [scrappedPosts]);
+  }, [scrappedPosts, fetchScraps]);
 
+  // ====================================================================
+  // ✨ 6. 트렌드 스크랩 후, fetchScraps()를 호출하여 스크랩 목록 갱신
+  // ====================================================================
   const toggleTrendScrap = useCallback(async (trendId: number) => {
     const originalState = new Set(scrappedTrends);
-    const isCurrentlyScrapped = originalState.has(trendId);
-
-    // Optimistic UI Update for the Set
-    setScrappedTrends(prev => {
-      const next = new Set(prev);
-      if (isCurrentlyScrapped) next.delete(trendId);
-      else next.add(trendId);
-      return next;
-    });
-
-    // Optimistic UI Update for the main trends array
-    setTrends(prev => prev.map(t => t.id === trendId ? { ...t, scrapped: !isCurrentlyScrapped } : t));
+    const newState = new Set(scrappedTrends);
+    if (newState.has(trendId)) newState.delete(trendId);
+    else newState.add(trendId);
+    setScrappedTrends(newState);
 
     try {
       await trendsApi.scrap(trendId);
+      await fetchTrends(); // 트렌드 목록의 스크랩 상태(아이콘 모양) 업데이트
+      await fetchScraps(); // 스크랩 목록과 개수를 다시 불러옵니다.
     } catch (error) {
-      // Revert on error
       setScrappedTrends(originalState);
-      setTrends(prev => prev.map(t => t.id === trendId ? { ...t, scrapped: isCurrentlyScrapped } : t));
       Alert.alert("오류", "트렌드 스크랩 처리에 실패했습니다.");
     }
-  }, [scrappedTrends]);
-  // ✨ --- 수정된 부분 끝 --- ✨
+  }, [scrappedTrends, fetchTrends, fetchScraps]);
 
   const setLikeStatus = useCallback((postId: number, isLiked: boolean) => {
     setLikedPosts(prev => {

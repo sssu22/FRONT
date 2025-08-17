@@ -1,6 +1,6 @@
 // sssu22/front/FRONT-feature-4/screens/ProfileTab.tsx
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,12 +9,16 @@ import {
   Modal,
   StyleSheet,
   SafeAreaView,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { Card, Button, IconButton, Avatar } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import ProfileEdit from "./ProfileEdit";
 import { Experience, User, EmotionType } from "../types";
 import { useGlobalContext } from "../GlobalContext";
+import * as ImagePicker from 'expo-image-picker';
+import { usersApi, authApi } from "../utils/apiUtils";
 
 const emotionIcons: Record<EmotionType, string> = {
   joy: "😊", excitement: "🔥", nostalgia: "💭", surprise: "😲", love: "💖",
@@ -36,11 +40,56 @@ export default function ProfileTab({
                                      onShowScraps,
                                      scrappedCount,
                                    }: ProfileTabProps) {
-  const { user } = useGlobalContext();
+  const { user, setUser } = useGlobalContext();
   const [showProfileEdit, setShowProfileEdit] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleSelectImage = useCallback(async () => {
+    if (!user || !setUser) return;
+
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('권한 필요', '프로필 사진을 변경하려면 사진첩 접근 권한이 필요합니다.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const asset = result.assets[0];
+      setIsUploading(true);
+      try {
+        // ✨ 핵심 수정 ✨
+        // 1. 이미지 업로드 후, 서버가 직접 반환해주는 응답(새 이미지 URL 포함)을 받습니다.
+        const response = await usersApi.updateProfileImage(asset);
+
+        // 2. 불안정한 추가 요청(validateToken) 없이, 받은 응답을 사용해 상태를 업데이트합니다.
+        if (response?.profileImageUrl) {
+          setUser({ ...user, profileImageUrl: response.profileImageUrl });
+          Alert.alert("성공", "프로필 사진이 변경되었습니다.");
+        } else {
+          // 서버 응답에 URL이 없는 경우, 만약을 위해 전체 정보를 다시 요청합니다.
+          const fullyUpdatedUser = await authApi.validateToken();
+          setUser(fullyUpdatedUser);
+          Alert.alert("성공", "프로필 사진이 변경되었습니다.");
+        }
+      } catch (error) {
+        console.error("이미지 업로드 실패:", error);
+        Alert.alert("오류", "사진 업로드에 실패했습니다.");
+      } finally {
+        setIsUploading(false);
+      }
+    }
+  }, [user, setUser]);
+
 
   if (!user) {
-    return null; // 사용자 정보가 없으면 아무것도 렌더링하지 않음
+    return null;
   }
 
   const totalTrendScore = experiences.reduce((sum, e) => sum + e.trendScore, 0);
@@ -48,22 +97,25 @@ export default function ProfileTab({
       ? Math.round(totalTrendScore / experiences.length)
       : 0;
   const uniqueLocations = new Set(experiences.map((e) => e.location)).size;
-
-  // 👇 *** 여기가 수정된 부분입니다 (user.name 방어 코드) *** 👇
   const userName = user.name || "";
   const userInitial = userName ? userName.charAt(0).toUpperCase() : "";
 
   return (
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          {user.profileImageUrl ? (
-              <Avatar.Image size={72} source={{ uri: user.profileImageUrl }} />
-          ) : (
-              // userInitial을 사용하여 안전하게 렌더링
-              <Avatar.Text size={72} label={userInitial} style={styles.avatarTextContainer} />
-          )}
+          <TouchableOpacity onPress={handleSelectImage} disabled={isUploading}>
+            {user.profileImageUrl ? (
+                <Avatar.Image size={72} source={{ uri: user.profileImageUrl }} />
+            ) : (
+                <Avatar.Text size={72} label={userInitial} style={styles.avatarTextContainer} />
+            )}
+            {isUploading && (
+                <View style={styles.uploadingOverlay}>
+                  <ActivityIndicator color="#fff" />
+                </View>
+            )}
+          </TouchableOpacity>
           <View style={styles.profileInfo}>
-            {/* userName을 사용하여 안전하게 렌더링 */}
             <Text style={styles.username}>{userName}</Text>
             <Text style={styles.email}>{user.email}</Text>
           </View>
@@ -177,4 +229,11 @@ const styles = StyleSheet.create({
   buttonContainer: { marginTop: 8 },
   actionButton: { marginBottom: 12 },
   logoutButton: { backgroundColor: "#dc2626" },
+  uploadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 36,
+  },
 });

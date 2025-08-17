@@ -40,8 +40,6 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
     const [confirmText, setConfirmText] = useState("");
     const [delLoading, setDelLoading] = useState(false);
 
-    // --- � 1. 사진 선택 로직: 로컬 상태만 변경 ---
-    // 사진을 선택하면 서버에 바로 업로드하지 않고, 로컬 상태에만 임시 저장하여 화면에 미리 보여줍니다.
     const handleSelectImage = useCallback(async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
@@ -54,25 +52,21 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
         });
 
         if (!result.canceled && result.assets && result.assets.length > 0) {
-            // 선택한 이미지 파일(asset) 자체를 상태에 저장합니다.
             setProfileImageSource(result.assets[0]);
         }
     }, []);
 
-    // --- 💡 2. 저장 로직: 모든 변경사항을 한 번에 처리 ---
+    // --- 💡 **수정된 저장 로직** ---
     const handleSave = async () => {
         if (!user) return;
         setIsSaving(true);
         try {
             let finalImageUrl = user.profileImageUrl;
 
-            // 만약 새로 선택한 이미지가 있다면 (즉, profileImageSource가 파일 객체라면)
             if (profileImageSource && typeof profileImageSource === 'object' && 'uri' in profileImageSource) {
-                // 이 시점에서만 이미지를 서버에 업로드하고 새 URL을 받습니다.
                 finalImageUrl = await apiUtils.usersApi.updateProfileImage(profileImageSource);
             }
 
-            // 텍스트 정보와 최종 이미지 URL을 합쳐서 서버에 전송합니다.
             const updatedProfileData = {
                 name: username,
                 address: location,
@@ -82,9 +76,14 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
                 profileImageUrl: finalImageUrl,
             };
 
-            // 서버에 수정을 요청하고, 성공하면 서버가 반환하는 최신 정보로 전역 상태를 업데이트합니다.
-            const fullyUpdatedUser = await apiUtils.usersApi.updateMe(updatedProfileData);
-            setUser(fullyUpdatedUser);
+            // 1. 서버에 프로필 업데이트 요청 (반환값은 사용하지 않음)
+            await apiUtils.usersApi.updateMe(updatedProfileData);
+
+            // 2. 가장 정확한 최신 사용자 정보를 다시 불러옴
+            const refreshedUser = await apiUtils.authApi.validateToken();
+
+            // 3. 최신 정보로 전역 상태 업데이트
+            setUser(refreshedUser);
 
             Alert.alert("성공", "프로필 정보가 성공적으로 업데이트되었습니다.");
             onClose();
@@ -100,14 +99,13 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
     const actuallyDelete = async () => { setDelLoading(true); try { await apiUtils.usersApi.deleteAccount(); Alert.alert("성공", "계정이 삭제되었습니다. 이용해주셔서 감사합니다."); await handleLogout(); onClose(); } catch(e: any) { Alert.alert("오류", e.response?.data?.message || "계정 삭제에 실패했습니다."); } finally { setDelLoading(false); } };
     const handleDeleteAccount = () => { if (confirmText.trim().toUpperCase() !== "DELETE") { Alert.alert('오류', '"DELETE"를 정확히 입력해주세요.'); return; } Alert.alert( "정말 삭제할까요?", "계정을 삭제하면 모든 데이터가 영구적으로 삭제되며, 되돌릴 수 없습니다.", [ { text: "취소", style: "cancel" }, { text: "삭제", style: "destructive", onPress: actuallyDelete }, ] ); };
 
-    // --- 💡 3. 아바타 렌더링 로직 개선 ---
     const renderAvatar = () => {
         let sourceUri: string | undefined;
 
         if (profileImageSource && typeof profileImageSource === 'object' && 'uri' in profileImageSource) {
-            sourceUri = profileImageSource.uri; // 새로 선택한 로컬 이미지
+            sourceUri = profileImageSource.uri;
         } else if (typeof profileImageSource === 'string' && profileImageSource) {
-            sourceUri = profileImageSource; // 기존 서버 URL
+            sourceUri = profileImageSource;
         }
 
         if (sourceUri) {

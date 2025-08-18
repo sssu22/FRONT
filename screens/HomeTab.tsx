@@ -1,4 +1,4 @@
-// sssu22/front/FRONT-feature-UI-API2-/screens/HomeTab.tsx
+// sssu22/front/FRONT-feature-/screens/HomeTab.tsx
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
@@ -170,7 +170,7 @@ export default function HomeTab({ onExperienceClick, searchQuery, onViewAllPress
             <>
               <Text style={styles.sectionTitle}>🔥 지금 뜨는 경험</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.hotScroll}>
-                {popularPosts.map((exp) => (
+                {popularPosts.slice(0, 5).map((exp) => (
                     <HotExperienceCard key={exp.id} experience={exp} onClick={onExperienceClick} />
                 ))}
               </ScrollView>
@@ -225,7 +225,8 @@ const HotExperienceCard = ({ experience: exp, onClick }: { experience: Experienc
     <TouchableOpacity onPress={() => onClick(exp)}>
       <Card style={styles.hotCard}>
         <View style={styles.hotCardTop}>
-          <Text style={styles.hotEmoji}>{emotionIcons[exp.emotion.toLowerCase()] || '😊'}</Text>
+          {/* 여기가 수정된 부분입니다. */}
+          <Text style={styles.hotEmoji}>{emotionIcons[exp.emotion]}</Text>
           <View style={styles.hotTitleContainer}>
             <Text style={styles.hotTitle} numberOfLines={2}>{exp.title}</Text>
             <Text style={styles.hotTrendName} numberOfLines={1}>#{exp.trendName || '알 수 없는 트렌드'}</Text>

@@ -120,6 +120,7 @@ function AppContent() {
             await postsApi.delete(id);
             await fetchExperiences();
             if (selectedId === id) setSelectedId(null);
+            Alert.alert("알림", "게시글이 삭제되었습니다.")
           } catch (error: any) {
             if (error.response?.status === 401) await handleLogout();
             else Alert.alert("삭제 실패", "게시글 삭제에 실패했습니다.");

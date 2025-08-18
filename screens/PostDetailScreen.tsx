@@ -1,4 +1,4 @@
-// PostDetailScreen.tsx
+// sssu22/front/FRONT-feature-/screens/PostDetailScreen.tsx
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
@@ -10,20 +10,20 @@ import { Experience, Comment } from "../types";
 import { useGlobalContext } from "../GlobalContext";
 
 const emotionIcons: Record<string, string> = {
-    joy: "😊", excitement: "🔥", nostalgia: "💭", surprise: "😲", love: "�",
+    joy: "😊", excitement: "🔥", nostalgia: "💭", surprise: "😲", love: "💖",
     regret: "😞", sadness: "😢", irritation: "😒", anger: "😡", embarrassment: "😳",
 };
 
 interface PostDetailScreenProps {
-    postId: number;
+    Id: number;
     onClose: () => void;
     onTrendPress: (trendId: number) => void;
+    onTagPress: (tag: string) => void;
 }
 
-// CommentItem은 TrendDetailScreen과 동일하게 자체 상태를 관리합니다.
-const CommentItem = ({ comment, postId, currentUserId, onDeleteSuccess }: {
+const CommentItem = ({ comment, Id, currentUserId, onDeleteSuccess }: {
     comment: Comment;
-    postId: number;
+    Id: number;
     currentUserId: string | undefined;
     onDeleteSuccess: () => void;
 }) => {
@@ -34,7 +34,11 @@ const CommentItem = ({ comment, postId, currentUserId, onDeleteSuccess }: {
     const isMyComment = String(comment.userId) === String(currentUserId);
 
     const handleLikeComment = async () => {
-        if (!commentId) return;
+        if (!commentId) {
+            Alert.alert("오류", "댓글 ID를 찾을 수 없습니다.");
+            return;
+        }
+
         const originalLiked = isLiked;
         const originalLikeCount = likeCount;
 
@@ -42,8 +46,9 @@ const CommentItem = ({ comment, postId, currentUserId, onDeleteSuccess }: {
         setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
 
         try {
-            await commentsApi.like(postId, commentId);
+            await commentsApi.like(Id, commentId);
         } catch (error) {
+            console.error('댓글 좋아요 처리 오류:', error);
             setIsLiked(originalLiked);
             setLikeCount(originalLikeCount);
             Alert.alert("오류", "댓글 좋아요 처리에 실패했습니다.");
@@ -51,16 +56,21 @@ const CommentItem = ({ comment, postId, currentUserId, onDeleteSuccess }: {
     };
 
     const handleDeleteComment = () => {
-        if (!commentId) return;
+        if (!commentId) {
+            Alert.alert("오류", "댓글 ID를 찾을 수 없습니다.");
+            return;
+        }
+
         Alert.alert("댓글 삭제", "정말 이 댓글을 삭제하시겠습니까?", [
             { text: "취소", style: "cancel" },
             {
                 text: "삭제", style: "destructive",
                 onPress: async () => {
                     try {
-                        await commentsApi.delete(postId, commentId);
+                        await commentsApi.delete(Id, commentId);
                         onDeleteSuccess();
                     } catch (error) {
+                        console.error('댓글 삭제 오류:', error);
                         Alert.alert("오류", "댓글 삭제에 실패했습니다.");
                     }
                 },
@@ -89,6 +99,7 @@ const CommentItem = ({ comment, postId, currentUserId, onDeleteSuccess }: {
                     )}
                 </View>
                 <Text style={styles.commentContent}>{comment.content}</Text>
+
                 <View style={styles.commentFooter}>
                     <TouchableOpacity style={styles.commentLikeButton} onPress={handleLikeComment}>
                         <Ionicons name={isLiked ? "heart" : "heart-outline"} size={16} color={isLiked ? "#E91E63" : "#999"} />
@@ -104,28 +115,16 @@ const CommentItem = ({ comment, postId, currentUserId, onDeleteSuccess }: {
     );
 };
 
-const normalizeComment = (comment: any): Comment => {
-    return {
-        id: comment.id || comment.commentId,
-        content: comment.content,
-        createdAt: comment.createdAt || comment.time,
-        likeCount: comment.likeCount || 0,
-        liked: comment.liked ?? false,
-        username: comment.userName || comment.username || comment.authorName || "사용자",
-        userId: comment.userId,
-        imageUrl: comment.imageUrl || comment.authorProfileImageUrl,
-    };
-};
-
-export default function PostDetailScreen({ postId, onClose, onTrendPress }: PostDetailScreenProps) {
-    const { user } = useGlobalContext();
+export default function PostDetailScreen({ Id, onClose, onTrendPress, onTagPress }: PostDetailScreenProps) {
+    const { user, scrappedPosts, togglePostScrap, setPostScrapStatus } = useGlobalContext();
     const [post, setPost] = useState<Experience | null>(null);
     const [loading, setLoading] = useState(true);
     const [newComment, setNewComment] = useState("");
 
     const [isLiked, setIsLiked] = useState(false);
     const [likeCount, setLikeCount] = useState(0);
-    const [isScrapped, setIsScrapped] = useState(false);
+
+    const isScrapped = scrappedPosts.has(Id);
 
     const generatePostColor = useCallback((id: number) => {
         const colors = [
@@ -136,38 +135,52 @@ export default function PostDetailScreen({ postId, onClose, onTrendPress }: Post
         return colors[id % colors.length];
     }, []);
 
-    const fetchPostDetail = useCallback(async () => {
+    const fetchPostDetail = useCallback(async (caller?: string) => {
         try {
-            const postData = await postsApi.getById(postId);
-            const normalizedComments = (postData.comments || []).map(normalizeComment);
-            setPost({ ...postData, comments: normalizedComments });
-            
+            const postData = await postsApi.getById(Id);
+            setPost(postData);
+
+            //console.log(`[PostDetailScreen] 상태 업데이트 전: isLiked=${isLiked}, likeCount=${likeCount}`);
             setIsLiked(postData.liked ?? false);
             setLikeCount(postData.likeCount ?? 0);
-            setIsScrapped(postData.scrapped ?? false);
+            setPostScrapStatus(Id, postData.scrapped ?? false);
+            //console.log(`[PostDetailScreen] 상태 업데이트 후: isLiked=${postData.liked ?? false}, likeCount=${postData.likeCount ?? 0}`);
 
         } catch (err: any) {
+            console.error('게시글 상세 조회 오류:', err);
             Alert.alert("오류", "게시글을 불러오는 데 실패했습니다.");
             onClose();
         }
-    }, [postId, onClose]);
+    }, [Id, onClose, setPostScrapStatus]);
 
     useEffect(() => {
         setLoading(true);
-        fetchPostDetail().finally(() => setLoading(false));
+        fetchPostDetail("useEffect").finally(() => setLoading(false));
     }, [fetchPostDetail]);
 
     const handleLike = async () => {
-        if (!post || !user) return;
+        if (!post || !user) {
+            Alert.alert("알림", "로그인이 필요한 기능입니다.");
+            return;
+        }
+        
+        //console.log(`[PostDetailScreen] handleLike 시작. Post ID: ${post.id}. 현재 상태: isLiked=${isLiked}, likeCount=${likeCount}`);
+        
         const originalLiked = isLiked;
         const originalLikeCount = likeCount;
 
-        setIsLiked(!isLiked);
-        setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+        const newLikedState = !isLiked;
+        const newLikeCount = newLikedState ? originalLikeCount + 1 : originalLikeCount - 1;
+
+        //console.log(`[PostDetailScreen] UI 즉시 업데이트 실행 -> isLiked: ${newLikedState}, likeCount: ${newLikeCount}`);
+        setIsLiked(newLikedState);
+        setLikeCount(newLikeCount);
 
         try {
             await postsApi.likePost(post.id);
+            //console.log(`[PostDetailScreen] 좋아요 API 호출 성공.`);
         } catch (error) {
+            //console.error('[PostDetailScreen] 좋아요 API 실패! UI 롤백 실행.', error);
             setIsLiked(originalLiked);
             setLikeCount(originalLikeCount);
             Alert.alert("오류", "좋아요 처리에 실패했습니다.");
@@ -175,29 +188,31 @@ export default function PostDetailScreen({ postId, onClose, onTrendPress }: Post
     };
 
     const handleScrap = async () => {
-        if (!post || !user) return;
-        const originalScrapped = isScrapped;
-        setIsScrapped(!isScrapped);
-
-        try {
-            await postsApi.scrapPost(post.id);
-        } catch (error) {
-            setIsScrapped(originalScrapped);
-            Alert.alert("오류", "스크랩 처리에 실패했습니다.");
+        if (!post || !user) {
+            Alert.alert("알림", "로그인이 필요한 기능입니다.");
+            return;
         }
+        //console.log(`[PostDetailScreen] handleScrap 호출. Post ID: ${post.id}. 현재 isScrapped (from context): ${isScrapped}`);
+        await togglePostScrap(post.id);
     };
 
     const handleCommentSubmit = async () => {
-        if (newComment.trim() === "" || !post || !user) return;
+        if (newComment.trim() === "" || !post) return;
+        if (!user) {
+            Alert.alert("알림", "로그인이 필요한 기능입니다.");
+            return;
+        }
         try {
             await commentsApi.create(post.id, newComment.trim());
             setNewComment("");
-            await fetchPostDetail();
+            await fetchPostDetail("handleCommentSubmit");
         } catch (error) {
+            console.error('댓글 등록 오류:', error);
             Alert.alert("오류", "댓글 등록에 실패했습니다.");
         }
     };
 
+    // ... (이하 return 문 및 styles는 동일)
     if (loading) {
         return <View style={styles.centerContainer}><ActivityIndicator size="large" color="#581c87" /></View>;
     }
@@ -213,7 +228,7 @@ export default function PostDetailScreen({ postId, onClose, onTrendPress }: Post
         );
     }
 
-    const postColor = generatePostColor(postId);
+    const postColor = generatePostColor(Id);
 
     return (
         <SafeAreaView style={styles.safeAreaContainer}>
@@ -280,9 +295,9 @@ export default function PostDetailScreen({ postId, onClose, onTrendPress }: Post
                             <Text style={styles.sectionTitle}>태그</Text>
                             <View style={styles.tagsContainer}>
                                 {post.tags.map((tag, index) => (
-                                    <View key={index} style={styles.tag}>
+                                    <TouchableOpacity key={index} style={styles.tag} onPress={() => onTagPress(tag)}>
                                         <Text style={styles.tagText}>#{tag}</Text>
-                                    </View>
+                                    </TouchableOpacity>
                                 ))}
                             </View>
                         </View>
@@ -304,11 +319,11 @@ export default function PostDetailScreen({ postId, onClose, onTrendPress }: Post
                         {post.comments && post.comments.length > 0 ? (
                             post.comments.map((c) => (
                                 <CommentItem
-                                    key={c.id || c.commentId}
+                                    key={c.id}
                                     comment={c}
-                                    postId={post.id}
+                                    Id={post.id}
                                     currentUserId={user?.id}
-                                    onDeleteSuccess={fetchPostDetail}
+                                    onDeleteSuccess={() => fetchPostDetail("CommentItemDelete")}
                                 />
                             ))
                         ) : (

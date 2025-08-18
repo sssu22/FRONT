@@ -17,8 +17,8 @@ interface GlobalContextType {
   setShowForm: (show: boolean) => void;
   editingExperience: Experience | null;
   setEditingExperience: (exp: Experience | null) => void;
-  selectedPostId: number | null;
-  setSelectedPostId: (id: number | null) => void;
+  selectedId: number | null;
+  setSelectedId: (id: number | null) => void;
   selectedTrendId: number | null;
   setSelectedTrendId: (id: number | null) => void;
   handleLogin: (creds: { email: string; password: string }) => Promise<void>;
@@ -29,11 +29,13 @@ interface GlobalContextType {
   likedPosts: Set<number>;
   scrappedPosts: Set<number>;
   scrappedTrends: Set<number>;
-  togglePostLike: (postId: number) => Promise<void>;
-  togglePostScrap: (postId: number) => Promise<void>;
+  togglePostLike: (Id: number) => Promise<void>;
+  togglePostScrap: (Id: number) => Promise<void>;
   toggleTrendScrap: (trendId: number) => Promise<void>;
-  setLikeStatus: (postId: number, isLiked: boolean) => void;
-  setScrapStatus: (postId: number, isScrapped: boolean) => void;
+  setLikeStatus: (Id: number, isLiked: boolean) => void;
+  setScrapStatus: (Id: number, isScrapped: boolean) => void;
+  // ✅ PostDetail을 위한 함수 추가
+  setPostScrapStatus: (Id: number, isScrapped: boolean) => void;
   setTrendScrapStatus: (trendId: number, isScrapped: boolean) => void;
 }
 
@@ -48,7 +50,7 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
   const [loadingTrends, setLoadingTrends] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingExperience, setEditingExperience] = useState<Experience | null>(null);
-  const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [selectedTrendId, setSelectedTrendId] = useState<number | null>(null);
   const [likedPosts, setLikedPosts] = useState(new Set<number>());
   const [scrappedPosts, setScrappedPosts] = useState(new Set<number>());
@@ -138,7 +140,6 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
   const handleLogin = useCallback(async (creds: { email: string; password:string }) => {
     try {
       const loggedInUser = await authApi.login(creds);
-      // ✨ 핵심 수정: authApi.login이 반환하는 완전한 사용자 정보로 상태를 업데이트합니다.
       setUser(loggedInUser);
     } catch (error) {
       Alert.alert("로그인 실패", "이메일 또는 비밀번호를 확인해주세요.");
@@ -156,15 +157,15 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [handleLogin]);
 
-  const togglePostLike = useCallback(async (postId: number) => {
+  const togglePostLike = useCallback(async (Id: number) => {
     const originalState = new Set(likedPosts);
     const newState = new Set(likedPosts);
-    if (newState.has(postId)) newState.delete(postId);
-    else newState.add(postId);
+    if (newState.has(Id)) newState.delete(Id);
+    else newState.add(Id);
     setLikedPosts(newState);
 
     try {
-      await postsApi.likePost(postId);
+      await postsApi.likePost(Id);
       await fetchExperiences();
     } catch (error) {
       setLikedPosts(originalState);
@@ -172,15 +173,15 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [likedPosts, fetchExperiences]);
 
-  const togglePostScrap = useCallback(async (postId: number) => {
+  const togglePostScrap = useCallback(async (Id: number) => {
     const originalState = new Set(scrappedPosts);
     const newState = new Set(scrappedPosts);
-    if (newState.has(postId)) newState.delete(postId);
-    else newState.add(postId);
+    if (newState.has(Id)) newState.delete(Id);
+    else newState.add(Id);
     setScrappedPosts(newState);
 
     try {
-      await postsApi.scrapPost(postId);
+      await postsApi.scrapPost(Id);
       await fetchScraps();
     } catch (error) {
       setScrappedPosts(originalState);
@@ -205,20 +206,30 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [scrappedTrends, fetchTrends, fetchScraps]);
 
-  const setLikeStatus = useCallback((postId: number, isLiked: boolean) => {
+  const setLikeStatus = useCallback((Id: number, isLiked: boolean) => {
     setLikedPosts(prev => {
       const next = new Set(prev);
-      if (isLiked) next.add(postId);
-      else next.delete(postId);
+      if (isLiked) next.add(Id);
+      else next.delete(Id);
       return next;
     });
   }, []);
 
-  const setScrapStatus = useCallback((postId: number, isScrapped: boolean) => {
+  const setScrapStatus = useCallback((Id: number, isScrapped: boolean) => {
     setScrappedPosts(prev => {
       const next = new Set(prev);
-      if (isScrapped) next.add(postId);
-      else next.delete(postId);
+      if (isScrapped) next.add(Id);
+      else next.delete(Id);
+      return next;
+    });
+  }, []);
+
+  // ✅ PostDetail을 위한 별칭 함수 추가
+  const setPostScrapStatus = useCallback((Id: number, isScrapped: boolean) => {
+    setScrappedPosts(prev => {
+      const next = new Set(prev);
+      if (isScrapped) next.add(Id);
+      else next.delete(Id);
       return next;
     });
   }, []);
@@ -244,8 +255,8 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     setShowForm,
     editingExperience,
     setEditingExperience,
-    selectedPostId,
-    setSelectedPostId,
+    selectedId,
+    setSelectedId,
     selectedTrendId,
     setSelectedTrendId,
     handleLogin,
@@ -261,13 +272,16 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     toggleTrendScrap,
     setLikeStatus,
     setScrapStatus,
+    // ✅ PostDetail을 위한 함수들도 value에 포함
+    setPostScrapStatus,
     setTrendScrapStatus,
   }), [
     user, isInitializing, experiences, trends, loadingExperiences, loadingTrends,
-    showForm, editingExperience, selectedPostId, selectedTrendId,
+    showForm, editingExperience, selectedId, selectedTrendId,
     likedPosts, scrappedPosts, scrappedTrends,
     handleLogin, handleSignup, handleLogout, fetchExperiences, fetchTrends,
-    togglePostLike, togglePostScrap, toggleTrendScrap, setLikeStatus, setScrapStatus, setTrendScrapStatus
+    togglePostLike, togglePostScrap, toggleTrendScrap, setLikeStatus, setScrapStatus,
+    setPostScrapStatus, setTrendScrapStatus
   ]);
 
   return (

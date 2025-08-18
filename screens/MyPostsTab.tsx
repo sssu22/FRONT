@@ -62,10 +62,10 @@ const normalizeDistrict = (name: string): string => {
 };
 
 export default function MyPostsTab({
-                                       onExperienceClick,
-                                       onEditExperience,
-                                       onDeleteExperience,
-                                       searchQuery,
+                                     onExperienceClick,
+                                     onEditExperience,
+                                     onDeleteExperience,
+                                     searchQuery,
                                    }: MyPostsTabProps) {
     const isFocused = useIsFocused();
     const [experiences, setExperiences] = useState<Experience[]>([]);
@@ -112,7 +112,7 @@ export default function MyPostsTab({
                         size: 999,
                         district: districtFilter || undefined,
                     };
-
+                    console.log("서버에 게시물 요청:", params);
                     const postsFromServer = await postsApi.getMyPosts(params);
 
                     // 컴포넌트가 여전히 마운트되어 있고, 이 요청이 최신 요청일 경우에만 상태를 업데이트합니다.

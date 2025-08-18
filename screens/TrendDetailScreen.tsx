@@ -329,7 +329,7 @@ export default function TrendDetailScreen({ trendId, onClose, onNavigateToTrend 
                 <View style={styles.subMetricsContainer}>
                   <View style={styles.subMetric}>
                     <Ionicons name="at-outline" size={24} color="#8B5CF6" />
-                    <Text style={styles.subMetricValue}>{(trend.snsMentions || 0).toLocaleString()}</Text>
+                   <Text style={styles.subMetricValue}>{(trend.snsMentions || 0) >= 50  ? '50+' : (trend.snsMentions || 0).toLocaleString()} </Text>
                     <Text style={styles.subMetricLabel}>SNS 언급량</Text>
                   </View>
                   <View style={styles.subMetric}>

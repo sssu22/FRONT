@@ -48,7 +48,7 @@ function AppContent() {
     user, isInitializing, experiences,
     handleLogin, handleSignup, handleLogout, fetchExperiences,
     showForm, setShowForm, editingExperience, setEditingExperience,
-    selectedPostId, setSelectedPostId,
+    selectedId, setSelectedId,
     selectedTrendId, setSelectedTrendId,
     scrappedPosts, scrappedTrends,
   } = useGlobalContext();
@@ -61,12 +61,12 @@ function AppContent() {
   const scrappedCount = (scrappedPosts?.size || 0) + (scrappedTrends?.size || 0);
 
   const handleExperienceClick = useCallback((exp: Experience) => {
-    setSelectedPostId(exp.id);
-  }, [setSelectedPostId]);
+    setSelectedId(exp.id);
+  }, [setSelectedId]);
 
   const handleCloseDetail = useCallback(() => {
-    setSelectedPostId(null);
-  }, [setSelectedPostId]);
+    setSelectedId(null);
+  }, [setSelectedId]);
 
   const handleEditClick = useCallback((exp: Experience) => {
     setEditingExperience(exp);
@@ -74,9 +74,9 @@ function AppContent() {
   }, [setEditingExperience, setShowForm]);
 
   const handleTrendPress = useCallback((trendId: number) => {
-    setSelectedPostId(null);
+    setSelectedId(null);
     setSelectedTrendId(trendId);
-  }, [setSelectedPostId, setSelectedTrendId]);
+  }, [setSelectedId, setSelectedTrendId]);
 
   const handleAddExperience = useCallback(async (p: SubmitPayload) => {
     try {
@@ -113,7 +113,7 @@ function AppContent() {
           try {
             await postsApi.delete(id);
             await fetchExperiences();
-            if (selectedPostId === id) setSelectedPostId(null);
+            if (selectedId === id) setSelectedId(null);
           } catch (error: any) {
             if (error.response?.status === 401) await handleLogout();
             else Alert.alert("삭제 실패", "게시글 삭제에 실패했습니다.");
@@ -121,7 +121,7 @@ function AppContent() {
         },
       },
     ]);
-  }, [selectedPostId, fetchExperiences, setSelectedPostId, handleLogout]);
+  }, [selectedId, fetchExperiences, setSelectedId, handleLogout]);
 
   if (isInitializing) {
     return (
@@ -220,8 +220,8 @@ function AppContent() {
           />
         </Modal>
 
-        <Modal visible={selectedPostId !== null} animationType="slide" onRequestClose={handleCloseDetail}>
-          {selectedPostId !== null && <PostDetailScreen postId={selectedPostId} onClose={handleCloseDetail} onTrendPress={handleTrendPress} />}
+        <Modal visible={selectedId !== null} animationType="slide" onRequestClose={handleCloseDetail}>
+          {selectedId !== null && <PostDetailScreen Id={selectedId} onClose={handleCloseDetail} onTrendPress={handleTrendPress} />}
         </Modal>
 
         <Modal visible={selectedTrendId !== null} animationType="slide" onRequestClose={() => setSelectedTrendId(null)}>

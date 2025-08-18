@@ -10,7 +10,7 @@ export interface Comment {
   id: number;
   username?: string;
   time?: string;
-  createdAt?: string;
+  createdAt : string;
   createAt? : string;
   timestamp?: string;
   content: string;
@@ -90,6 +90,8 @@ export interface Experience {
   comments?: Comment[];
   liked?: boolean;
   scrapped?: boolean;
+  isScrapped?: boolean;
+  userScrapped?: boolean;
 }
 
 export interface SearchResult {

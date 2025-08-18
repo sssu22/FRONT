@@ -138,7 +138,7 @@ export default function ProfileTab({
                     <View style={{ flex: 1 }}>
                       <Text style={styles.activityTitle}>{exp.title}</Text>
                       <Text style={styles.activityDate}>
-                        {new Date(exp.date).toLocaleDateString("ko-KR")} • {exp.location}
+                        {new Date(exp.date).toLocaleDateString("ko-KR")}
                       </Text>
                     </View>
                     <Text style={styles.scoreText}>{exp.trendScore}점</Text>

@@ -1,10 +1,10 @@
 import { Experience, EmotionType, Comment } from '../types';
 
-// ✅ 1. 서버에서 내려올 수 있는 필드(locationDetail)를 인터페이스에 추가합니다.
 interface ServerPost {
   id: number;
   title?: string;
   experienceDate?: string;
+  date?: string;
   location?: string;
   summary?: string;
   description?: string;
@@ -17,12 +17,28 @@ interface ServerPost {
   likeCount?: number;
   commentCount?: number;
   scrapCount?: number;
-  comments?: Comment[];
+  comments?: any[]; // 서버 댓글 타입이 다르므로 any로 받고 아래에서 변환
   liked?: boolean;
   scrapped?: boolean;
+  isScrapped?: boolean;
+  userScrapped?: boolean;
   gu?: string;
-  locationDetail?: string; // locationDetail 필드 추가
+  locationDetail?: string;
 }
+
+
+const normalizeComment = (comment: any): Comment => {
+  return {
+    id: comment.id || comment.commentId, // id와 commentId 모두 처리
+    content: comment.content || '',
+    createdAt: comment.createdAt || comment.createAt || comment.time || new Date().toISOString(), // createdAt, createAt, time 모두 처리
+    likeCount: comment.likeCount || 0,
+    liked: comment.liked ?? false,
+    username: comment.userName || comment.authorName || '사용자', // userName과 authorName 모두 처리
+    userId: comment.userId,
+    imageUrl: comment.imageUrl || comment.authorProfileImageUrl, // imageUrl과 authorProfileImageUrl 모두 처리
+  };
+};
 
 const serverToApp = (post: ServerPost): Experience => {
   return {
@@ -40,10 +56,11 @@ const serverToApp = (post: ServerPost): Experience => {
     likeCount: post.likeCount,
     commentCount: post.commentCount,
     scrapCount: post.scrapCount,
-    comments: post.comments || [],
-    liked: post.liked,
-    scrapped: post.scrapped,
-    locationDetail: post.gu || post.locationDetail,
+    // 여기서 댓글 정규화 함수를 사용
+    comments: (post.comments || []).map(normalizeComment),
+    // 좋아요/스크랩 상태 필드를 하나로 통일
+    liked: post.liked ?? false,
+    scrapped: post.scrapped ?? false,
   };
 };
 

@@ -1,4 +1,4 @@
-// sssu22/front/FRONT-feature-UI-API2-/utils/apiUtils.ts
+// sssu22/front/FRONT-feature-/utils/apiUtils.ts
 
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -177,15 +177,29 @@ export const postsApi = {
     update: async (id: number, p: any) => { const res = await axios.put(`/posts/${id}`, p); return res.data; },
     delete: async (id: number) => { const res = await axios.delete(`/posts/${id}`); return res.data; },
     getPopular: async (): Promise<Experience[]> => { const res = await axios.get("/posts/popular"); const list = res.data?.data?.list || []; return (Array.isArray(list) ? list : []).map(dataTransformers.serverToApp); },
-    likePost: async (postId: number) => { const res = await axios.post(`/posts/${postId}/like`, {}); return res.data; },
-    scrapPost: async (postId: number) => { const res = await axios.post(`/posts/${postId}/scrap`, {}); return res.data; },
+    likePost: async (postId: number) => {
+        const res = await axios.post(`/posts/${postId}/like`, {});
+        return res.data;
+    },
+    scrapPost: async (postId: number) => {
+        const res = await axios.post(`/posts/${postId}/scrap`, {});
+        return res.data;
+    },
     getMyPostMap: async (): Promise<MapMarkerItem[]> => { const res = await axios.get("/users/me/posts/map"); const body = res.data?.data ?? res.data?.result ?? res.data; return Array.isArray(body) ? body : Array.isArray(body?.list) ? body.list : []; },
 };
 
-export const commentsApi = { create: async (postId: number, content: string) => { const res = await axios.post(`/posts/${postId}/comments`, { content }); return res.data; }, delete: async (postId: number, commentId: number) => { const res = await axios.delete(`/posts/${postId}/comments/${commentId}`); return res.data; }, like: async (postId: number, commentId: number) => {
+export const commentsApi = {
+    create: async (postId: number, content: string) => { const res = await axios.post(`/posts/${postId}/comments`, { content }); return res.data; },
+    delete: async (postId: number, commentId: number) => { const res = await axios.delete(`/posts/${postId}/comments/${commentId}`); return res.data; },
+    like: async (postId: number, commentId: number) => {
         const res = await axios.post(`/posts/${postId}/comments/${commentId}/like`, {});
         return res.data?.data || res.data;
-    }, createForTrend: async (trendId: number, content: string) => { const res = await axios.post(`/trends/${trendId}/comments`, { content }); return res.data; }, deleteForTrend: async (trendId: number, commentId: number) => { const res = await axios.delete(`/trends/comments/${commentId}`); return res.data; }, likeForTrend: async (commentId: number) => { const res = await axios.post(`/trends/comments/${commentId}/like`, {}); return res.data; }, };
+    },
+    createForTrend: async (trendId: number, content: string) => { const res = await axios.post(`/trends/${trendId}/comments`, { content }); return res.data; },
+    deleteForTrend: async (trendId: number, commentId: number) => { const res = await axios.delete(`/trends/comments/${commentId}`); return res.data; },
+    likeForTrend: async (commentId: number) => { const res = await axios.post(`/trends/comments/${commentId}/like`, {}); return res.data; },
+};
+
 export const scrapsApi = { getMyScrappedPosts: async (): Promise<Experience[]> => { const res = await axios.get("/users/me/scraps"); const list = res.data?.data?.list || res.data?.data || []; return (Array.isArray(list) ? list : []).map(dataTransformers.serverToApp); }, getMyScrappedTrends: async (): Promise<Trend[]> => { const res = await axios.get("/users/me/trends"); const list = res.data?.data?.list || res.data?.data || []; return (Array.isArray(list) ? list : []).map(transformToTrend); }, };
 export const tagsApi = {
     getPopular: async (): Promise<PopularTag[]> => {

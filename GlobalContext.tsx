@@ -1,4 +1,4 @@
-// sssu22/front/FRONT-feature-UI-API2-/GlobalContext.tsx
+// sssu22/front/FRONT-feature-/GlobalContext.tsx
 
 import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
@@ -156,37 +156,41 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [handleLogin]);
 
-  const togglePostLike = useCallback(async (Id: number) => {
+    const togglePostLike = useCallback(async (Id: number) => {
     const originalState = new Set(likedPosts);
     const newState = new Set(likedPosts);
-    if (newState.has(Id)) newState.delete(Id);
-    else newState.add(Id);
+    if (newState.has(Id)) {
+      newState.delete(Id);
+    } else {
+      newState.add(Id);
+    }
     setLikedPosts(newState);
 
     try {
       await postsApi.likePost(Id);
-      await fetchExperiences();
     } catch (error) {
       setLikedPosts(originalState);
       Alert.alert("오류", "좋아요 처리에 실패했습니다.");
     }
-  }, [likedPosts, fetchExperiences]);
+  }, [likedPosts]);
 
   const togglePostScrap = useCallback(async (Id: number) => {
     const originalState = new Set(scrappedPosts);
     const newState = new Set(scrappedPosts);
-    if (newState.has(Id)) newState.delete(Id);
-    else newState.add(Id);
+    if (newState.has(Id)) {
+      newState.delete(Id);
+    } else {
+      newState.add(Id);
+    }
     setScrappedPosts(newState);
 
     try {
       await postsApi.scrapPost(Id);
-      await fetchScraps();
     } catch (error) {
       setScrappedPosts(originalState);
       Alert.alert("오류", "게시물 스크랩 처리에 실패했습니다.");
     }
-  }, [scrappedPosts, fetchScraps]);
+  }, [scrappedPosts]);
 
   const toggleTrendScrap = useCallback(async (trendId: number) => {
     const originalState = new Set(scrappedTrends);

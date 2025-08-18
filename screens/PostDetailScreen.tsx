@@ -1,4 +1,4 @@
-// sssu22/front/FRONT-feature-UI-API2-/screens/PostDetailScreen.tsx
+// PostDetailScreen.tsx
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
@@ -10,20 +10,20 @@ import { Experience, Comment } from "../types";
 import { useGlobalContext } from "../GlobalContext";
 
 const emotionIcons: Record<string, string> = {
-    joy: "😊", excitement: "🔥", nostalgia: "💭", surprise: "😲", love: "💖",
+    joy: "😊", excitement: "🔥", nostalgia: "💭", surprise: "😲", love: "�",
     regret: "😞", sadness: "😢", irritation: "😒", anger: "😡", embarrassment: "😳",
 };
 
 interface PostDetailScreenProps {
-    Id: number;
+    postId: number;
     onClose: () => void;
     onTrendPress: (trendId: number) => void;
-    onTagPress: (tag: string) => void;
 }
 
-const CommentItem = ({ comment, Id, currentUserId, onDeleteSuccess }: {
+// CommentItem은 TrendDetailScreen과 동일하게 자체 상태를 관리합니다.
+const CommentItem = ({ comment, postId, currentUserId, onDeleteSuccess }: {
     comment: Comment;
-    Id: number;
+    postId: number;
     currentUserId: string | undefined;
     onDeleteSuccess: () => void;
 }) => {
@@ -34,11 +34,7 @@ const CommentItem = ({ comment, Id, currentUserId, onDeleteSuccess }: {
     const isMyComment = String(comment.userId) === String(currentUserId);
 
     const handleLikeComment = async () => {
-        if (!commentId) {
-            Alert.alert("오류", "댓글 ID를 찾을 수 없습니다.");
-            return;
-        }
-
+        if (!commentId) return;
         const originalLiked = isLiked;
         const originalLikeCount = likeCount;
 
@@ -46,13 +42,8 @@ const CommentItem = ({ comment, Id, currentUserId, onDeleteSuccess }: {
         setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
 
         try {
-            const response = await commentsApi.like(Id, commentId);
-            if (response?.data) {
-                setIsLiked(response.data.liked ?? response.data.isLiked ?? !originalLiked);
-                setLikeCount(response.data.likeCount ?? (isLiked ? likeCount - 1 : likeCount + 1));
-            }
+            await commentsApi.like(postId, commentId);
         } catch (error) {
-            console.error('댓글 좋아요 처리 오류:', error);
             setIsLiked(originalLiked);
             setLikeCount(originalLikeCount);
             Alert.alert("오류", "댓글 좋아요 처리에 실패했습니다.");
@@ -60,21 +51,16 @@ const CommentItem = ({ comment, Id, currentUserId, onDeleteSuccess }: {
     };
 
     const handleDeleteComment = () => {
-        if (!commentId) {
-            Alert.alert("오류", "댓글 ID를 찾을 수 없습니다.");
-            return;
-        }
-
+        if (!commentId) return;
         Alert.alert("댓글 삭제", "정말 이 댓글을 삭제하시겠습니까?", [
             { text: "취소", style: "cancel" },
             {
                 text: "삭제", style: "destructive",
                 onPress: async () => {
                     try {
-                        await commentsApi.delete(Id, commentId);
+                        await commentsApi.delete(postId, commentId);
                         onDeleteSuccess();
                     } catch (error) {
-                        console.error('댓글 삭제 오류:', error);
                         Alert.alert("오류", "댓글 삭제에 실패했습니다.");
                     }
                 },
@@ -103,7 +89,6 @@ const CommentItem = ({ comment, Id, currentUserId, onDeleteSuccess }: {
                     )}
                 </View>
                 <Text style={styles.commentContent}>{comment.content}</Text>
-
                 <View style={styles.commentFooter}>
                     <TouchableOpacity style={styles.commentLikeButton} onPress={handleLikeComment}>
                         <Ionicons name={isLiked ? "heart" : "heart-outline"} size={16} color={isLiked ? "#E91E63" : "#999"} />
@@ -132,16 +117,15 @@ const normalizeComment = (comment: any): Comment => {
     };
 };
 
-export default function PostDetailScreen({ Id, onClose, onTrendPress, onTagPress }: PostDetailScreenProps) {
-    const { user, scrappedPosts, togglePostScrap, setPostScrapStatus } = useGlobalContext();
+export default function PostDetailScreen({ postId, onClose, onTrendPress }: PostDetailScreenProps) {
+    const { user } = useGlobalContext();
     const [post, setPost] = useState<Experience | null>(null);
     const [loading, setLoading] = useState(true);
     const [newComment, setNewComment] = useState("");
 
     const [isLiked, setIsLiked] = useState(false);
     const [likeCount, setLikeCount] = useState(0);
-
-    const isScrapped = scrappedPosts.has(Id);
+    const [isScrapped, setIsScrapped] = useState(false);
 
     const generatePostColor = useCallback((id: number) => {
         const colors = [
@@ -154,22 +138,19 @@ export default function PostDetailScreen({ Id, onClose, onTrendPress, onTagPress
 
     const fetchPostDetail = useCallback(async () => {
         try {
-            const postData = await postsApi.getById(Id);
+            const postData = await postsApi.getById(postId);
             const normalizedComments = (postData.comments || []).map(normalizeComment);
             setPost({ ...postData, comments: normalizedComments });
-
+            
             setIsLiked(postData.liked ?? false);
             setLikeCount(postData.likeCount ?? 0);
-
-            const initialScrapStatus = postData.scrapped || postData.isScrapped || postData.userScrapped || false;
-            setPostScrapStatus(Id, initialScrapStatus);
+            setIsScrapped(postData.scrapped ?? false);
 
         } catch (err: any) {
-            console.error('게시글 상세 조회 오류:', err);
             Alert.alert("오류", "게시글을 불러오는 데 실패했습니다.");
             onClose();
         }
-    }, [Id, onClose, setPostScrapStatus]);
+    }, [postId, onClose]);
 
     useEffect(() => {
         setLoading(true);
@@ -177,11 +158,7 @@ export default function PostDetailScreen({ Id, onClose, onTrendPress, onTagPress
     }, [fetchPostDetail]);
 
     const handleLike = async () => {
-        if (!post || !user) {
-            Alert.alert("알림", "로그인이 필요한 기능입니다.");
-            return;
-        }
-
+        if (!post || !user) return;
         const originalLiked = isLiked;
         const originalLikeCount = likeCount;
 
@@ -191,7 +168,6 @@ export default function PostDetailScreen({ Id, onClose, onTrendPress, onTagPress
         try {
             await postsApi.likePost(post.id);
         } catch (error) {
-            console.error('게시글 좋아요 처리 오류:', error);
             setIsLiked(originalLiked);
             setLikeCount(originalLikeCount);
             Alert.alert("오류", "좋아요 처리에 실패했습니다.");
@@ -199,27 +175,25 @@ export default function PostDetailScreen({ Id, onClose, onTrendPress, onTagPress
     };
 
     const handleScrap = async () => {
-        if (!post || !user) {
-            Alert.alert("알림", "로그인이 필요한 기능입니다.");
-            return;
+        if (!post || !user) return;
+        const originalScrapped = isScrapped;
+        setIsScrapped(!isScrapped);
+
+        try {
+            await postsApi.scrapPost(post.id);
+        } catch (error) {
+            setIsScrapped(originalScrapped);
+            Alert.alert("오류", "스크랩 처리에 실패했습니다.");
         }
-        await togglePostScrap(post.id);
     };
 
     const handleCommentSubmit = async () => {
-        if (newComment.trim() === "" || !post) return;
-
-        if (!user) {
-            Alert.alert("알림", "로그인이 필요한 기능입니다.");
-            return;
-        }
-
+        if (newComment.trim() === "" || !post || !user) return;
         try {
             await commentsApi.create(post.id, newComment.trim());
             setNewComment("");
             await fetchPostDetail();
         } catch (error) {
-            console.error('댓글 등록 오류:', error);
             Alert.alert("오류", "댓글 등록에 실패했습니다.");
         }
     };
@@ -239,7 +213,7 @@ export default function PostDetailScreen({ Id, onClose, onTrendPress, onTagPress
         );
     }
 
-    const postColor = generatePostColor(Id);
+    const postColor = generatePostColor(postId);
 
     return (
         <SafeAreaView style={styles.safeAreaContainer}>
@@ -306,9 +280,9 @@ export default function PostDetailScreen({ Id, onClose, onTrendPress, onTagPress
                             <Text style={styles.sectionTitle}>태그</Text>
                             <View style={styles.tagsContainer}>
                                 {post.tags.map((tag, index) => (
-                                    <TouchableOpacity key={index} style={styles.tag} onPress={() => onTagPress(tag)}>
+                                    <View key={index} style={styles.tag}>
                                         <Text style={styles.tagText}>#{tag}</Text>
-                                    </TouchableOpacity>
+                                    </View>
                                 ))}
                             </View>
                         </View>
@@ -330,9 +304,9 @@ export default function PostDetailScreen({ Id, onClose, onTrendPress, onTagPress
                         {post.comments && post.comments.length > 0 ? (
                             post.comments.map((c) => (
                                 <CommentItem
-                                    key={c.id}
+                                    key={c.id || c.commentId}
                                     comment={c}
-                                    Id={post.id}
+                                    postId={post.id}
                                     currentUserId={user?.id}
                                     onDeleteSuccess={fetchPostDetail}
                                 />

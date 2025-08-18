@@ -1,4 +1,4 @@
-// sssu22/front/FRONT-feature-1-/screens/CreateEditPostScreen.tsx
+// sssu22/front/FRONT-feature-UI-API2-/screens/CreateEditPostScreen.tsx
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
@@ -139,7 +139,11 @@ export default function CreateEditPostScreen({
   };
 
   const handleConfirmDate = (date: Date) => {
-    const d = date.toISOString().split("T")[0];
+    const year = date.getFullYear();
+    const month = ('0' + (date.getMonth() + 1)).slice(-2);
+    const day = ('0' + date.getDate()).slice(-2);
+    const d = `${year}-${month}-${day}`;
+
     setFormData((prev) => ({ ...prev, date: d }));
     setShowDatePicker(false);
   };
@@ -156,7 +160,6 @@ export default function CreateEditPostScreen({
 
       if (data.documents && data.documents.length > 0) {
         for (const doc of data.documents) {
-          // ✅ 수정된 부분: '구' 정보를 더 정확한 region_2depth_name 필드에서 먼저 찾도록 변경합니다.
           const district = doc.address?.region_2depth_name || getGuFromAddress(doc.address_name) || getGuFromAddress(doc.road_address_name);
           if (district && district.endsWith('구')) {
             return {
@@ -216,6 +219,18 @@ export default function CreateEditPostScreen({
     }
   };
 
+  // DatePicker에 전달할 Date 객체를 생성하는 로직
+  const getPickerDate = () => {
+    try {
+      const parts = formData.date.split('-').map(Number);
+      // month는 0부터 시작하므로 1을 빼줍니다.
+      return new Date(parts[0], parts[1] - 1, parts[2]);
+    } catch (e) {
+      // 파싱 실패 시 현재 날짜로 대체
+      return new Date();
+    }
+  };
+
   return (
       <Provider>
         <SafeAreaView style={styles.root}>
@@ -263,7 +278,15 @@ export default function CreateEditPostScreen({
                 <TouchableOpacity onPress={() => !isSubmitting && setShowDatePicker(true)}>
                   <Text style={[styles.input, { paddingVertical: 12, color: "#191939" }]}>{formData.date}</Text>
                 </TouchableOpacity>
-                <DateTimePickerModal isVisible={showDatePicker} mode="date" date={new Date(formData.date + "T00:00:00")} onConfirm={handleConfirmDate} onCancel={() => setShowDatePicker(false)} display="spinner" />
+                <DateTimePickerModal
+                    isVisible={showDatePicker}
+                    mode="date"
+                    date={getPickerDate()} // 수정된 부분
+                    onConfirm={handleConfirmDate}
+                    onCancel={() => setShowDatePicker(false)}
+                    display="spinner"
+                    maximumDate={new Date()}
+                />
 
                 <Text style={styles.label}>장소 *</Text>
                 <TextInput style={styles.input} placeholder="장소 입력 (예: 잠실, 숭실대)" value={formData.location} onChangeText={(v) => setFormData((f) => ({ ...f, location: v }))} editable={!isSubmitting} />

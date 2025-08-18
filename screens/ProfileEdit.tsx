@@ -1,12 +1,13 @@
-// sssu22/front/FRONT-feature-4/screens/ProfileEdit.tsx
+// sssu22/front/FRONT-feature-UI-API2-/screens/ProfileEdit.tsx
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import {
     View, Text, TextInput, ScrollView, StyleSheet, TouchableOpacity, Switch, Modal, Alert, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from "react-native";
 import { Button, Avatar } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as ImagePicker from 'expo-image-picker';
+import DateTimePickerModal from "react-native-modal-datetime-picker"; // DatePicker 임포트
 import * as apiUtils from "../utils/apiUtils";
 import { useGlobalContext } from "../GlobalContext";
 
@@ -19,16 +20,17 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
 
     const [isSaving, setIsSaving] = useState(false);
 
-    // 로컬 상태는 GlobalContext의 user 상태로 명확히 초기화합니다.
+    // 로컬 상태
     const [username, setUsername] = useState(user?.name || "");
     const [email] = useState(user?.email || "");
     const [bio, setBio] = useState(user?.stateMessage || "");
     const [birthday, setBirthday] = useState(user?.birth || "");
     const [location, setLocation] = useState(user?.address || "");
     const [allowLocation, setAllowLocation] = useState(user?.locationTracing || false);
-
-    // 새로 선택한 이미지 파일(asset) 또는 기존/업데이트된 이미지 URL을 관리하는 상태
     const [profileImageSource, setProfileImageSource] = useState<string | ImagePicker.ImagePickerAsset | null>(user?.profileImageUrl || null);
+
+    // DatePicker 상태 추가
+    const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
 
     // 모달 관련 상태
     const [pwModalVisible, setPwModalVisible] = useState(false);
@@ -39,6 +41,27 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
     const [delModalVisible, setDelModalVisible] = useState(false);
     const [confirmText, setConfirmText] = useState("");
     const [delLoading, setDelLoading] = useState(false);
+
+    // --- DatePicker 핸들러 함수 ---
+    const showDatePicker = () => {
+        setDatePickerVisibility(true);
+    };
+
+    const hideDatePicker = () => {
+        setDatePickerVisibility(false);
+    };
+
+    const handleConfirmDate = (date: Date) => {
+        // Timezone 문제를 피하기 위해 수동으로 날짜 포맷팅
+        const year = date.getFullYear();
+        const month = ('0' + (date.getMonth() + 1)).slice(-2);
+        const day = ('0' + date.getDate()).slice(-2);
+        const formattedDate = `${year}-${month}-${day}`;
+
+        setBirthday(formattedDate);
+        hideDatePicker();
+    };
+
 
     const handleSelectImage = useCallback(async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -56,7 +79,6 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
         }
     }, []);
 
-    // --- 💡 **수정된 저장 로직** ---
     const handleSave = async () => {
         if (!user) return;
         setIsSaving(true);
@@ -76,13 +98,8 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
                 profileImageUrl: finalImageUrl,
             };
 
-            // 1. 서버에 프로필 업데이트 요청 (반환값은 사용하지 않음)
             await apiUtils.usersApi.updateMe(updatedProfileData);
-
-            // 2. 가장 정확한 최신 사용자 정보를 다시 불러옴
             const refreshedUser = await apiUtils.authApi.validateToken();
-
-            // 3. 최신 정보로 전역 상태 업데이트
             setUser(refreshedUser);
 
             Alert.alert("성공", "프로필 정보가 성공적으로 업데이트되었습니다.");
@@ -135,7 +152,14 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
                     <TextInput style={styles.input} placeholder="사용자명" value={username} onChangeText={setUsername} />
                     <TextInput style={[styles.input, { backgroundColor: "#f3f4f6", color: "#888" }]} value={email} editable={false} />
                     <TextInput style={[styles.input, { height: 70, textAlignVertical: "top" }]} placeholder="자기소개" value={bio} onChangeText={setBio} multiline />
-                    <TextInput style={styles.input} placeholder="생년월일 (YYYY-MM-DD)" value={birthday} onChangeText={setBirthday} />
+
+                    {/* --- 💡 생년월일 TextInput을 TouchableOpacity로 변경 --- */}
+                    <TouchableOpacity onPress={showDatePicker}>
+                        <Text style={[styles.input, { paddingVertical: 12, color: birthday ? '#333' : '#999' }]}>
+                            {birthday || "생년월일 (YYYY-MM-DD)"}
+                        </Text>
+                    </TouchableOpacity>
+
                     <TextInput style={styles.input} placeholder="거주지" value={location} onChangeText={setLocation} />
                 </View>
 
@@ -157,6 +181,16 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
                     변경사항 저장
                 </Button>
             </ScrollView>
+
+            {/* --- 💡 DateTimePickerModal 추가 --- */}
+            <DateTimePickerModal
+                isVisible={isDatePickerVisible}
+                mode="date"
+                onConfirm={handleConfirmDate}
+                onCancel={hideDatePicker}
+                // 생일 선택이므로 미래 날짜는 선택할 수 없도록 설정
+                maximumDate={new Date()}
+            />
 
             <Modal visible={pwModalVisible} animationType="slide" transparent>
                 <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.modalWrap}>

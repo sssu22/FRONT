@@ -40,23 +40,22 @@ const styles = StyleSheet.create({
   trendInfo: { flex: 1, marginRight: 8 },
   trendTitle: { fontSize: 16, fontWeight: "bold", color: "#1f2937", marginBottom: 4 },
   trendTag: { fontSize: 12, color: "#8b5cf6", marginBottom: 4 },
-  // ✨ 1. rightContainer를 가로 정렬로 변경
   rightContainer: { flexDirection: 'row', alignItems: 'center' },
-  scoreContainer: { alignItems: "flex-end", marginRight: 8 }, // ✨ 오른쪽 여백 추가
+  scoreContainer: { alignItems: "flex-end", marginRight: 8 },
   trendScore: { fontSize: 18, fontWeight: "bold", color: "#8b5cf6" },
-  increaseContainer: { flexDirection: "row", alignItems: "center", marginRight: 8 }, // ✨ 오른쪽 여백 추가
+  increaseContainer: { flexDirection: "row", alignItems: "center", marginRight: 8 },
   increaseText: { fontSize: 12, fontWeight: "600", marginLeft: 4 },
   increasePositive: { color: "#16a34a" },
   increaseNegative: { color: "#dc2626" },
-  confidenceText: { fontSize: 11, color: "#6b7280", marginTop: 2 },
+  confidenceText: { fontSize: 11, color: "#6b7280", marginLeft: 8 },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", paddingVertical: 40 },
   emptyText: { textAlign: "center", color: "#6b7280", fontSize: 14, marginTop: 20, paddingVertical: 10 },
 });
 
 export default function TrendsTab({
-  onTrendView = () => {},
-  searchQuery = "",
-}: TrendsTabProps) {
+                                    onTrendView = () => {},
+                                    searchQuery = "",
+                                  }: TrendsTabProps) {
   // --- GlobalContext에서 상태와 함수 가져오기 ---
   const { user, scrappedTrends, toggleTrendScrap } = useGlobalContext();
 
@@ -75,13 +74,13 @@ export default function TrendsTab({
     setLoading(true);
     try {
       const [statsData, recentData, popularData, recData, predData] =
-        await Promise.all([
-          user ? usersApi.getMyStats() : Promise.resolve(null),
-          trendsApi.getRecent(),
-          trendsApi.getPopular(),
-          trendsApi.getRecommendations(),
-          trendsApi.getPredictions(),
-        ]);
+          await Promise.all([
+            user ? usersApi.getMyStats() : Promise.resolve(null),
+            trendsApi.getRecent(),
+            trendsApi.getPopular(),
+            trendsApi.getRecommendations(),
+            trendsApi.getPredictions(),
+          ]);
 
       if (statsData?.averageScore) {
         setAverageScore(statsData.averageScore);
@@ -138,13 +137,13 @@ export default function TrendsTab({
 
   // --- 렌더링 관련 로직 ---
   const showEmptySearch =
-    searchQuery && !isSearching && searchResults.length === 0;
+      searchQuery && !isSearching && searchResults.length === 0;
 
   const getTrendTag = (trend: Trend) => {
     return (
-      (Array.isArray(trend.tags) ? trend.tags[0] : trend.tags) ||
-      trend.category ||
-      ""
+        (Array.isArray(trend.tags) ? trend.tags[0] : trend.tags) ||
+        trend.category ||
+        ""
     );
   };
 
@@ -152,223 +151,234 @@ export default function TrendsTab({
     const rankStyles = [styles.rank1, styles.rank2, styles.rank3];
     const rankStyle = rankStyles[index] || styles.rankDefault;
     return (
-      <View style={[styles.rankContainer, rankStyle]}>
-        <Text style={styles.rankText}>{index + 1}</Text>
-      </View>
+        <View style={[styles.rankContainer, rankStyle]}>
+          <Text style={styles.rankText}>{index + 1}</Text>
+        </View>
     );
   };
 
   const renderIncreaseIndicator = (
-    increaseScore?: number,
-    confidence?: number
+      increaseScore?: number,
+      confidence?: number
   ) => {
     if (!increaseScore) return null;
 
     const isPositive = increaseScore > 0;
     const iconName = isPositive ? "trending-up" : "trending-down";
     const color = isPositive ? "#16a34a" : "#dc2626";
-    
+
     return (
-      <View style={styles.increaseContainer}>
-        <Ionicons name={iconName} size={14} color={color} />
-        <Text
-          style={[
-            styles.increaseText,
-            isPositive ? styles.increasePositive : styles.increaseNegative,
-          ]}
-        >
-          {isPositive ? "+" : ""}
-          {increaseScore.toString()}%
-        </Text>
-        {confidence && (
-          <Text style={styles.confidenceText}>
-            {" "}
-            신뢰도 {confidence.toString()}%
+        <View style={styles.increaseContainer}>
+          <Ionicons name={iconName} size={14} color={color} />
+          <Text
+              style={[
+                styles.increaseText,
+                isPositive ? styles.increasePositive : styles.increaseNegative,
+              ]}
+          >
+            {isPositive ? "+" : ""}
+            {increaseScore.toString()}%
           </Text>
-        )}
-      </View>
+          {confidence && (
+              <Text style={styles.confidenceText}>
+                신뢰도 {confidence.toString()}%
+              </Text>
+          )}
+        </View>
     );
   };
 
-  // ✨ 2. renderTrendCard가 section을 인자로 받아 조건부 렌더링 수행
   const renderTrendCard = (trend: Trend, index?: number, section?: string) => {
     const tag = getTrendTag(trend);
     const isScrapped = scrappedTrends.has(trend.id);
 
     return (
-      <TouchableOpacity
-        key={`trend-${trend.id}`}
-        style={styles.trendCard}
-        onPress={() => onTrendView(trend.id, tag)}
-      >
-        {index !== undefined && renderRankIcon(index)}
-        <View style={styles.trendInfo}>
-          <Text style={styles.trendTitle} numberOfLines={1}>
-            {trend.title}
-          </Text>
-          {tag && <Text style={styles.trendTag}>#{tag}</Text>}
-        </View>
-        <View style={styles.rightContainer}>
-          {section === 'predicted' ? (
-            renderIncreaseIndicator(trend.increaseScore, trend.prediction?.confidence)
-          ) : (
-            <View style={styles.scoreContainer}>
-              <Text style={styles.trendScore}>
-                {trend.score?.toString() || "0"}
-              </Text>
-            </View>
-          )}
-          <TouchableOpacity onPress={() => handleScrap(trend.id)}>
-            <Ionicons
-              name={isScrapped ? "bookmark" : "bookmark-outline"}
-              size={22}
-              color={isScrapped ? "#FFC107" : "#6b7280"}
-            />
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
+        <TouchableOpacity
+            key={`trend-${trend.id}`}
+            style={styles.trendCard}
+            onPress={() => onTrendView(trend.id, tag)}
+        >
+          {index !== undefined && renderRankIcon(index)}
+          <View style={styles.trendInfo}>
+            <Text style={styles.trendTitle} numberOfLines={1}>
+              {trend.title}
+            </Text>
+            {tag && <Text style={styles.trendTag}>#{tag}</Text>}
+          </View>
+          <View style={styles.rightContainer}>
+            {section === 'predicted' ? (
+                renderIncreaseIndicator(trend.increaseScore, trend.prediction?.confidence)
+            ) : (
+                <View style={styles.scoreContainer}>
+                  <Text style={styles.trendScore}>
+                    {trend.score?.toString() || "0"}
+                  </Text>
+                  {trend.increaseScore !== undefined && (
+                      <Text
+                          style={[
+                            styles.increaseText,
+                            trend.increaseScore > 0
+                                ? styles.increasePositive
+                                : styles.increaseNegative,
+                          ]}
+                      >
+                        {trend.increaseScore > 0 ? "+" : ""}
+                        {trend.increaseScore}%
+                      </Text>
+                  )}
+                </View>
+            )}
+            <TouchableOpacity onPress={() => handleScrap(trend.id)}>
+              <Ionicons
+                  name={isScrapped ? "bookmark" : "bookmark-outline"}
+                  size={22}
+                  color={isScrapped ? "#FFC107" : "#6b7280"}
+              />
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
     );
   };
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#8b5cf6" />
-          <Text style={styles.emptyText}>트렌드 데이터를 불러오는 중...</Text>
+        <View style={styles.container}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#8b5cf6" />
+            <Text style={styles.emptyText}>트렌드 데이터를 불러오는 중...</Text>
+          </View>
         </View>
-      </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      {searchQuery ? (
-        <>
-          {isSearching ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#8b5cf6" />
-              <Text style={styles.emptyText}>'{searchQuery}' 검색 중...</Text>
-            </View>
-          ) : showEmptySearch ? (
-            <View style={styles.loadingContainer}>
-              <Text style={styles.emptyText}>
-                '{searchQuery}'에 대한 검색 결과가 없습니다.
-              </Text>
-            </View>
-          ) : (
+      <ScrollView style={styles.container}>
+        {searchQuery ? (
             <>
-              <View style={styles.sectionHeader}>
-                <Ionicons
-                  name="search"
-                  size={20}
-                  color="#8b5cf6"
-                  style={styles.sectionIcon}
-                />
-                <Text style={styles.sectionTitle}>검색 결과</Text>
-                <Text style={styles.sectionSubtitle}>
-                  {searchResults.length}개
-                </Text>
-              </View>
-              {searchResults.map((trend, index) =>
-                renderTrendCard(trend, index, 'search')
+              {isSearching ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#8b5cf6" />
+                    <Text style={styles.emptyText}>'{searchQuery}' 검색 중...</Text>
+                  </View>
+              ) : showEmptySearch ? (
+                  <View style={styles.loadingContainer}>
+                    <Text style={styles.emptyText}>
+                      '{searchQuery}'에 대한 검색 결과가 없습니다.
+                    </Text>
+                  </View>
+              ) : (
+                  <>
+                    <View style={styles.sectionHeader}>
+                      <Ionicons
+                          name="search"
+                          size={20}
+                          color="#8b5cf6"
+                          style={styles.sectionIcon}
+                      />
+                      <Text style={styles.sectionTitle}>검색 결과</Text>
+                      <Text style={styles.sectionSubtitle}>
+                        {searchResults.length}개
+                      </Text>
+                    </View>
+                    {searchResults.map((trend, index) =>
+                        renderTrendCard(trend, index, 'search')
+                    )}
+                  </>
               )}
             </>
-          )}
-        </>
-      ) : (
-        <>
-          <View style={styles.statsContainer}>
-            <Text style={styles.statsNumber}>{averageScore.toString()}</Text>
-            <Text style={styles.statsLabel}>내 트렌드 점수</Text>
-            <View style={styles.progressBar}>
-              <View
-                style={[styles.progressFill, { width: `${averageScore}%` }]}
-              />
-            </View>
-          </View>
-
-          {recommendedTrends.length > 0 && (
+        ) : (
             <>
-              <View style={styles.sectionHeader}>
-                <Ionicons
-                  name="sparkles"
-                  size={20}
-                  color="#8b5cf6"
-                  style={styles.sectionIcon}
-                />
-                <Text style={styles.sectionTitle}>맞춤 추천</Text>
-                <Text style={styles.sectionSubtitle}>추천</Text>
+              <View style={styles.statsContainer}>
+                <Text style={styles.statsNumber}>{averageScore.toString()}</Text>
+                <Text style={styles.statsLabel}>내 트렌드 점수</Text>
+                <View style={styles.progressBar}>
+                  <View
+                      style={[styles.progressFill, { width: `${averageScore}%` }]}
+                  />
+                </View>
               </View>
-              {recommendedTrends
-                .slice(0, 3)
-                .map((trend) => renderTrendCard(trend, undefined, 'recommended'))}
-            </>
-          )}
 
-          {predictedTrends.length > 0 && (
-            <>
-              <View style={styles.sectionHeader}>
-                <Ionicons
-                  name="analytics"
-                  size={20}
-                  color="#10b981"
-                  style={styles.sectionIcon}
-                />
-                <Text style={styles.sectionTitle}>앞으로의 트렌드</Text>
-                <Text style={styles.sectionSubtitle}>사계열 분석</Text>
-              </View>
-              {/* ✨ 3. section 파라미터 전달 */}
-              {predictedTrends
-                .slice(0, 3)
-                .map((trend) => renderTrendCard(trend, undefined, 'predicted'))}
-            </>
-          )}
+              {recommendedTrends.length > 0 && (
+                  <>
+                    <View style={styles.sectionHeader}>
+                      <Ionicons
+                          name="sparkles"
+                          size={20}
+                          color="#8b5cf6"
+                          style={styles.sectionIcon}
+                      />
+                      <Text style={styles.sectionTitle}>맞춤 추천</Text>
+                      <Text style={styles.sectionSubtitle}>추천</Text>
+                    </View>
+                    {recommendedTrends
+                        .slice(0, 3)
+                        .map((trend) => renderTrendCard(trend, undefined, 'recommended'))}
+                  </>
+              )}
 
-          {popularTrends.length > 0 && (
-            <>
-              <View style={styles.sectionHeader}>
-                <Ionicons
-                  name="trophy"
-                  size={20}
-                  color="#f59e0b"
-                  style={styles.sectionIcon}
-                />
-                <Text style={styles.sectionTitle}>최고 트렌드 경험</Text>
-              </View>
-              {popularTrends
-                .slice(0, 5)
-                .map((trend, index) => renderTrendCard(trend, index, 'popular'))}
-            </>
-          )}
+              {predictedTrends.length > 0 && (
+                  <>
+                    <View style={styles.sectionHeader}>
+                      <Ionicons
+                          name="analytics"
+                          size={20}
+                          color="#10b981"
+                          style={styles.sectionIcon}
+                      />
+                      <Text style={styles.sectionTitle}>앞으로의 트렌드</Text>
+                      <Text style={styles.sectionSubtitle}>사계열 분석</Text>
+                    </View>
+                    {predictedTrends
+                        .slice(0, 3)
+                        .map((trend) => renderTrendCard(trend, undefined, 'predicted'))}
+                  </>
+              )}
 
-          {recentTrends.length > 0 && (
-            <>
-              <View style={styles.sectionHeader}>
-                <Ionicons
-                  name="time"
-                  size={20}
-                  color="#8b5cf6"
-                  style={styles.sectionIcon}
-                />
-                <Text style={styles.sectionTitle}>최근 트렌드</Text>
-              </View>
-              {recentTrends
-                .slice(0, 3)
-                .map((trend, index) => renderTrendCard(trend, index, 'recent'))}
-            </>
-          )}
+              {popularTrends.length > 0 && (
+                  <>
+                    <View style={styles.sectionHeader}>
+                      <Ionicons
+                          name="trophy"
+                          size={20}
+                          color="#f59e0b"
+                          style={styles.sectionIcon}
+                      />
+                      <Text style={styles.sectionTitle}>최고 트렌드 경험</Text>
+                    </View>
+                    {popularTrends
+                        .slice(0, 5)
+                        .map((trend, index) => renderTrendCard(trend, index, 'popular'))}
+                  </>
+              )}
 
-          {recommendedTrends.length === 0 &&
-            predictedTrends.length === 0 &&
-            popularTrends.length === 0 &&
-            recentTrends.length === 0 && (
-              <Text style={styles.emptyText}>
-                아직 트렌드 데이터가 없습니다.
-              </Text>
-            )}
-        </>
-      )}
-    </ScrollView>
+              {recentTrends.length > 0 && (
+                  <>
+                    <View style={styles.sectionHeader}>
+                      <Ionicons
+                          name="time"
+                          size={20}
+                          color="#8b5cf6"
+                          style={styles.sectionIcon}
+                      />
+                      <Text style={styles.sectionTitle}>최근 트렌드</Text>
+                    </View>
+                    {/* ✨ 'recent' 섹션 정보를 전달합니다. */}
+                    {recentTrends
+                        .slice(0, 3)
+                        .map((trend, index) => renderTrendCard(trend, index, 'recent'))}
+                  </>
+              )}
+
+              {recommendedTrends.length === 0 &&
+                  predictedTrends.length === 0 &&
+                  popularTrends.length === 0 &&
+                  recentTrends.length === 0 && (
+                      <Text style={styles.emptyText}>
+                        아직 트렌드 데이터가 없습니다.
+                      </Text>
+                  )}
+            </>
+        )}
+      </ScrollView>
   );
 }

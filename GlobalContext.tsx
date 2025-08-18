@@ -1,4 +1,4 @@
-// sssu22/front/FRONT-feature-4/GlobalContext.tsx
+// sssu22/front/FRONT-feature-UI-API2-/GlobalContext.tsx
 
 import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
@@ -34,7 +34,6 @@ interface GlobalContextType {
   toggleTrendScrap: (trendId: number) => Promise<void>;
   setLikeStatus: (Id: number, isLiked: boolean) => void;
   setScrapStatus: (Id: number, isScrapped: boolean) => void;
-  // ✅ PostDetail을 위한 함수 추가
   setPostScrapStatus: (Id: number, isScrapped: boolean) => void;
   setTrendScrapStatus: (trendId: number, isScrapped: boolean) => void;
 }
@@ -224,7 +223,6 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     });
   }, []);
 
-  // ✅ PostDetail을 위한 별칭 함수 추가
   const setPostScrapStatus = useCallback((Id: number, isScrapped: boolean) => {
     setScrappedPosts(prev => {
       const next = new Set(prev);
@@ -272,7 +270,6 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     toggleTrendScrap,
     setLikeStatus,
     setScrapStatus,
-    // ✅ PostDetail을 위한 함수들도 value에 포함
     setPostScrapStatus,
     setTrendScrapStatus,
   }), [

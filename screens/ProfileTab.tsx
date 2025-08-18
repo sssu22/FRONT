@@ -1,6 +1,6 @@
-// sssu22/front/FRONT-feature-4/screens/ProfileTab.tsx
+// sssu22/front/FRONT-feature-UI-API2-/screens/ProfileTab.tsx
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,16 +9,15 @@ import {
   Modal,
   StyleSheet,
   SafeAreaView,
+  ActivityIndicator,
 } from "react-native";
 import { Card, Button, IconButton, Avatar } from "react-native-paper";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import ProfileEdit from "./ProfileEdit";
 import { Experience, User, EmotionType } from "../types";
 import { useGlobalContext } from "../GlobalContext";
-
-// ✅ **수정된 부분**: ImagePicker와 API 관련 import 제거
-// import * as ImagePicker from 'expo-image-picker';
-// import { usersApi, authApi } from "../utils/apiUtils";
+import { usersApi, UserStats } from "../utils/apiUtils";
+import { useIsFocused } from '@react-navigation/native';
 
 const emotionIcons: Record<EmotionType, string> = {
   joy: "😊", excitement: "🔥", nostalgia: "💭", surprise: "😲", love: "💖",
@@ -26,51 +25,86 @@ const emotionIcons: Record<EmotionType, string> = {
 };
 
 interface ProfileTabProps {
-  experiences: Experience[];
   onExperienceClick: (exp: Experience) => void;
   onLogout: () => void;
   onShowScraps: () => void;
-  scrappedCount: number;
 }
 
 export default function ProfileTab({
-                                     experiences,
                                      onExperienceClick,
                                      onLogout,
                                      onShowScraps,
-                                     scrappedCount,
                                    }: ProfileTabProps) {
-  const { user } = useGlobalContext(); // ✅ **수정된 부분**: setUser는 더 이상 필요 없음
+  const { user } = useGlobalContext();
+  const isFocused = useIsFocused();
   const [showProfileEdit, setShowProfileEdit] = useState(false);
-  // ✅ **수정된 부분**: isUploading 상태 제거
-  // const [isUploading, setIsUploading] = useState(false);
+  const [stats, setStats] = useState<UserStats | null>(null);
+  const [profileData, setProfileData] = useState<Partial<User> | null>(null);
+  const [recentPosts, setRecentPosts] = useState<Experience[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // ✅ **수정된 부분**: handleSelectImage 함수 전체 제거
+  useEffect(() => {
+    const fetchData = async () => {
+      if (user && isFocused) {
+        setLoading(true);
+        try {
+          const [statsData, recentData, profileInfo] = await Promise.all([
+            usersApi.getMyStats(),
+            usersApi.getMyRecentPosts(),
+            usersApi.getMyProfile(),
+          ]);
+          setStats(statsData);
+          setRecentPosts(recentData);
+          setProfileData(profileInfo);
+        } catch (error) {
+          console.error("프로필 데이터 로딩 실패:", error);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+    fetchData();
+  }, [user, isFocused]);
+
 
   if (!user) {
     return null;
   }
 
-  const totalTrendScore = experiences.reduce((sum, e) => sum + e.trendScore, 0);
-  const avgTrendScore = experiences.length
-      ? Math.round(totalTrendScore / experiences.length)
-      : 0;
-  const uniqueLocations = new Set(experiences.map((e) => e.location)).size;
-  const userName = user.name || "";
-  const userInitial = userName ? userName.charAt(0).toUpperCase() : "";
+  const userInitial = profileData?.name ? profileData.name.charAt(0).toUpperCase() : (user.name ? user.name.charAt(0).toUpperCase() : "");
+
+  const StatItem = ({ label, value }: { label: string, value: number | undefined }) => (
+      <Card style={styles.statCard}>
+        {loading ? (
+            <ActivityIndicator color="#7c3aed" />
+        ) : (
+            <Text style={styles.statValue}>{value ?? 0}</Text>
+        )}
+        <Text style={styles.statLabel}>{label}</Text>
+      </Card>
+  );
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '가입일 정보 없음';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return '가입일 정보 없음';
+    }
+    return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일에 가입`;
+  };
 
   return (
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          {/* ✅ **수정된 부분**: TouchableOpacity 및 로딩 오버레이 제거, 단순 이미지 표시 */}
-          {user.profileImageUrl ? (
-              <Avatar.Image size={72} source={{ uri: user.profileImageUrl }} />
+          {profileData?.profileImageUrl ? (
+              <Avatar.Image size={72} source={{ uri: profileData.profileImageUrl }} />
           ) : (
-              <Avatar.Text size={72} label={userInitial} style={styles.avatarTextContainer} />
+              <Avatar.Text size={72} label={userInitial} />
           )}
           <View style={styles.profileInfo}>
-            <Text style={styles.username}>{userName}</Text>
-            <Text style={styles.email}>{user.email}</Text>
+            <Text style={styles.username}>{profileData?.name || user.name}</Text>
+            <Text style={styles.stateMessage} numberOfLines={1}>{profileData?.stateMessage || '자기소개를 입력해주세요.'}</Text>
+            <Text style={styles.signupDate}>{formatDate(profileData?.signUpDate)}</Text>
           </View>
           <IconButton
               icon={() => <Ionicons name="settings-outline" size={22} color="#7C3AED" />}
@@ -81,30 +115,20 @@ export default function ProfileTab({
 
         <Text style={styles.sectionTitle}>내 활동 요약</Text>
         <View style={styles.grid}>
-          <Card style={styles.statCard}>
-            <Text style={styles.statValue}>{experiences.length}</Text>
-            <Text style={styles.statLabel}>총 경험</Text>
-          </Card>
-          <Card style={styles.statCard}>
-            <Text style={styles.statValue}>{avgTrendScore}</Text>
-            <Text style={styles.statLabel}>평균 트렌드</Text>
-          </Card>
-          <Card style={styles.statCard}>
-            <Text style={styles.statValue}>{uniqueLocations}</Text>
-            <Text style={styles.statLabel}>방문 지역</Text>
-          </Card>
-          <Card style={styles.statCard}>
-            <Text style={styles.statValue}>{scrappedCount}</Text>
-            <Text style={styles.statLabel}>스크랩</Text>
-          </Card>
+          <StatItem label="총 경험" value={stats?.postCount} />
+          <StatItem label="평균 트렌드" value={stats?.averageScore} />
+          <StatItem label="방문 지역" value={stats?.visitPlaceCount} />
+          <StatItem label="스크랩" value={stats?.scrapCount} />
         </View>
 
         <Card style={styles.recentCard}>
           <Text style={styles.sectionTitle}>최근 활동</Text>
-          {experiences.length === 0 ? (
+          {loading ? (
+              <ActivityIndicator style={{ marginVertical: 20 }} />
+          ) : recentPosts.length === 0 ? (
               <Text style={styles.emptyText}>아직 경험이 없습니다</Text>
           ) : (
-              experiences.slice(0, 5).map((exp) => (
+              recentPosts.map((exp) => (
                   <TouchableOpacity
                       key={exp.id}
                       style={styles.activityItem}
@@ -155,21 +179,13 @@ export default function ProfileTab({
 const styles = StyleSheet.create({
   container: { padding: 16, backgroundColor: "#fff" },
   header: { flexDirection: "row", alignItems: "center", marginBottom: 16, },
-  avatarTextContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: "#8b5cf6",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
-  },
-  profileInfo: { flex: 1 },
-  username: { fontSize: 20, fontWeight: "bold", marginBottom: 2, color: "#374151" },
-  email: { fontSize: 14, color: "#6b7280" },
+  profileInfo: { flex: 1, marginLeft: 16 },
+  username: { fontSize: 20, fontWeight: "bold", marginBottom: 4, color: "#374151" },
+  stateMessage: { fontSize: 14, color: "#4b5563", marginBottom: 6 },
+  signupDate: { fontSize: 12, color: "#6b7280" },
   sectionTitle: { fontWeight: "bold", fontSize: 18, marginBottom: 12, color: "#6b21a8" },
   grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginBottom: 16, },
-  statCard: { width: "48%", borderRadius: 12, paddingVertical: 20, marginBottom: 12, backgroundColor: "#f9f9ff", justifyContent: "center", alignItems: "center", },
+  statCard: { width: "48%", borderRadius: 12, paddingVertical: 20, marginBottom: 12, backgroundColor: "#f9f9ff", justifyContent: "center", alignItems: "center", minHeight: 90 },
   statValue: { fontSize: 20, fontWeight: "bold", color: "#7c3aed", textAlign: "center" },
   statLabel: { fontSize: 12, color: "#6b7280", marginTop: 6, textAlign: "center" },
   recentCard: { borderRadius: 12, padding: 16, marginBottom: 16 },

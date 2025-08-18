@@ -1,4 +1,4 @@
-// types.ts
+// sssu22/front/FRONT-feature-UI-API2-/types.ts
 
 export const emotionLabels = {
   joy: "기쁨", excitement: "흥분", nostalgia: "향수", surprise: "놀람", love: "사랑",
@@ -108,4 +108,22 @@ export interface User {
   address?: string;
   stateMessage?: string;
   locationTracing?: boolean;
+  signUpDate?: string;
+}
+
+export interface PopularTag {
+  name: string;
+  postCount: number;
+}
+
+export interface PageInfo {
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface PaginatedResponse<T> {
+  list: T[];
+  pageInfo: PageInfo;
 }

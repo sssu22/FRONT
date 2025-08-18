@@ -1,4 +1,4 @@
-// PostDetailScreen.tsx
+// sssu22/front/FRONT-feature-UI-API2-/screens/PostDetailScreen.tsx
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
@@ -11,13 +11,14 @@ import { useGlobalContext } from "../GlobalContext";
 
 const emotionIcons: Record<string, string> = {
     joy: "😊", excitement: "🔥", nostalgia: "💭", surprise: "😲", love: "💖",
-    regret: "😞", sadness: "😢", irritation: "�", anger: "😡", embarrassment: "😳",
+    regret: "😞", sadness: "😢", irritation: "😒", anger: "😡", embarrassment: "😳",
 };
 
 interface PostDetailScreenProps {
     Id: number;
     onClose: () => void;
     onTrendPress: (trendId: number) => void;
+    onTagPress: (tag: string) => void;
 }
 
 const CommentItem = ({ comment, Id, currentUserId, onDeleteSuccess }: {
@@ -102,7 +103,7 @@ const CommentItem = ({ comment, Id, currentUserId, onDeleteSuccess }: {
                     )}
                 </View>
                 <Text style={styles.commentContent}>{comment.content}</Text>
-                
+
                 <View style={styles.commentFooter}>
                     <TouchableOpacity style={styles.commentLikeButton} onPress={handleLikeComment}>
                         <Ionicons name={isLiked ? "heart" : "heart-outline"} size={16} color={isLiked ? "#E91E63" : "#999"} />
@@ -131,7 +132,7 @@ const normalizeComment = (comment: any): Comment => {
     };
 };
 
-export default function PostDetailScreen({ Id, onClose, onTrendPress }: PostDetailScreenProps) {
+export default function PostDetailScreen({ Id, onClose, onTrendPress, onTagPress }: PostDetailScreenProps) {
     const { user, scrappedPosts, togglePostScrap, setPostScrapStatus } = useGlobalContext();
     const [post, setPost] = useState<Experience | null>(null);
     const [loading, setLoading] = useState(true);
@@ -139,10 +140,9 @@ export default function PostDetailScreen({ Id, onClose, onTrendPress }: PostDeta
 
     const [isLiked, setIsLiked] = useState(false);
     const [likeCount, setLikeCount] = useState(0);
-    
+
     const isScrapped = scrappedPosts.has(Id);
 
-    // ✨ 1. TrendDetailScreen에서 색상 생성 함수를 가져옵니다.
     const generatePostColor = useCallback((id: number) => {
         const colors = [
             '#7C3AED', '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
@@ -157,10 +157,10 @@ export default function PostDetailScreen({ Id, onClose, onTrendPress }: PostDeta
             const postData = await postsApi.getById(Id);
             const normalizedComments = (postData.comments || []).map(normalizeComment);
             setPost({ ...postData, comments: normalizedComments });
-            
+
             setIsLiked(postData.liked ?? false);
             setLikeCount(postData.likeCount ?? 0);
-            
+
             const initialScrapStatus = postData.scrapped || postData.isScrapped || postData.userScrapped || false;
             setPostScrapStatus(Id, initialScrapStatus);
 
@@ -208,7 +208,7 @@ export default function PostDetailScreen({ Id, onClose, onTrendPress }: PostDeta
 
     const handleCommentSubmit = async () => {
         if (newComment.trim() === "" || !post) return;
-        
+
         if (!user) {
             Alert.alert("알림", "로그인이 필요한 기능입니다.");
             return;
@@ -239,7 +239,6 @@ export default function PostDetailScreen({ Id, onClose, onTrendPress }: PostDeta
         );
     }
 
-    // ✨ 2. postId를 기반으로 색상을 생성합니다.
     const postColor = generatePostColor(Id);
 
     return (
@@ -261,7 +260,6 @@ export default function PostDetailScreen({ Id, onClose, onTrendPress }: PostDeta
                     </TouchableOpacity>
                 </View>
                 <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-                    {/* ✨ 3. 생성된 색상을 헤더 배경에 적용합니다. */}
                     <View style={[styles.header, { backgroundColor: postColor }]}>
                         <Text style={styles.emotion}>
                             {emotionIcons[post.emotion.toLowerCase()] || "🤔"}
@@ -308,9 +306,9 @@ export default function PostDetailScreen({ Id, onClose, onTrendPress }: PostDeta
                             <Text style={styles.sectionTitle}>태그</Text>
                             <View style={styles.tagsContainer}>
                                 {post.tags.map((tag, index) => (
-                                    <View key={index} style={styles.tag}>
+                                    <TouchableOpacity key={index} style={styles.tag} onPress={() => onTagPress(tag)}>
                                         <Text style={styles.tagText}>#{tag}</Text>
-                                    </View>
+                                    </TouchableOpacity>
                                 ))}
                             </View>
                         </View>
@@ -399,7 +397,7 @@ const styles = StyleSheet.create({
     navButton: {
         padding: 8,
     },
-    header: { padding: 24, alignItems: "center" }, // 기본 배경색 제거
+    header: { padding: 24, alignItems: "center" },
     emotion: { fontSize: 48, marginBottom: 16 },
     title: { fontSize: 24, fontWeight: "bold", color: "#FFFFFF", textAlign: "center", marginBottom: 8 },
     metaContainer: { flexDirection: "row", alignItems: "center" },

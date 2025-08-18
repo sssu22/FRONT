@@ -1,3 +1,5 @@
+// sssu22/front/FRONT-feature-UI-API2-/App.tsx
+
 import React, { useState, useCallback } from "react";
 import {
   View, Text, SafeAreaView, Modal, Alert, StatusBar, TouchableOpacity, StyleSheet, TextInput, ActivityIndicator,
@@ -11,19 +13,19 @@ import WelcomeScreen from "./screens/auth/WelcomeScreen";
 import LoginForm from "./screens/auth/LoginForm";
 import SignUpForm from "./screens/auth/SignUpForm";
 import ResetPasswordForm from "./screens/auth/ResetPasswordForm";
-import ResetConfirmForm from "./screens/auth/ResetConfirmForm";
 
 import HomeTab from "./screens/HomeTab";
 import TrendsTab from "./screens/TrendsTab";
 import MyPostsTab from "./screens/MyPostsTab";
 import ProfileTab from "./screens/ProfileTab";
 import ScrapView from "./screens/ScrapView";
+import AllPostsScreen from "./screens/AllPostsScreen";
 
-import { Experience, User } from "./types";
+import { Experience } from "./types";
 import { GlobalProvider, useGlobalContext } from "./GlobalContext";
 
 type TabType = "홈" | "트렌드" | "내 게시물" | "프로필";
-type AuthScreen = "welcome" | "login" | "signup" | "resetPassword" | "resetConfirm";
+type AuthScreen = "welcome" | "login" | "signup" | "resetPassword";
 
 export default function App() {
   return (
@@ -45,20 +47,18 @@ const TAB_CONFIG: Record<TabType, { icon: string; label: string }> = {
 function AppContent() {
   const TrendDetailScreen = require("./screens/TrendDetailScreen").default;
   const {
-    user, isInitializing, experiences,
+    user, isInitializing,
     handleLogin, handleSignup, handleLogout, fetchExperiences,
     showForm, setShowForm, editingExperience, setEditingExperience,
     selectedId, setSelectedId,
     selectedTrendId, setSelectedTrendId,
-    scrappedPosts, scrappedTrends,
   } = useGlobalContext();
 
   const [authScreen, setAuthScreen] = useState<AuthScreen>("welcome");
   const [activeTab, setActiveTab] = useState<TabType>("홈");
   const [searchQuery, setSearchQuery] = useState("");
   const [showScraps, setShowScraps] = useState(false);
-
-  const scrappedCount = (scrappedPosts?.size || 0) + (scrappedTrends?.size || 0);
+  const [showAllPosts, setShowAllPosts] = useState(false);
 
   const handleExperienceClick = useCallback((exp: Experience) => {
     setSelectedId(exp.id);
@@ -77,6 +77,12 @@ function AppContent() {
     setSelectedId(null);
     setSelectedTrendId(trendId);
   }, [setSelectedId, setSelectedTrendId]);
+
+  const handleTagPress = useCallback((tag: string) => {
+    setSelectedId(null);
+    setActiveTab("홈");
+    setSearchQuery(tag);
+  }, [setSelectedId, setActiveTab, setSearchQuery]);
 
   const handleAddExperience = useCallback(async (p: SubmitPayload) => {
     try {
@@ -150,13 +156,13 @@ function AppContent() {
   const renderTabContent = () => {
     switch (activeTab) {
       case "홈":
-        return <HomeTab onExperienceClick={handleExperienceClick} searchQuery={searchQuery} />;
+        return <HomeTab onExperienceClick={handleExperienceClick} searchQuery={searchQuery} onViewAllPress={() => setShowAllPosts(true)} onTagPress={setSearchQuery} />;
       case "트렌드":
         return <TrendsTab searchQuery={searchQuery} onTrendView={(trendId) => setSelectedTrendId(trendId)} />;
       case "내 게시물":
         return <MyPostsTab onExperienceClick={handleExperienceClick} onEditExperience={handleEditClick} onDeleteExperience={handleDeleteExperience} searchQuery={searchQuery} />;
       case "프로필":
-        return <ProfileTab experiences={experiences} onExperienceClick={handleExperienceClick} onLogout={handleLogout} onShowScraps={() => setShowScraps(true)} scrappedCount={scrappedCount} />;
+        return <ProfileTab onExperienceClick={handleExperienceClick} onLogout={handleLogout} onShowScraps={() => setShowScraps(true)} />;
       default:
         return null;
     }
@@ -221,7 +227,7 @@ function AppContent() {
         </Modal>
 
         <Modal visible={selectedId !== null} animationType="slide" onRequestClose={handleCloseDetail}>
-          {selectedId !== null && <PostDetailScreen Id={selectedId} onClose={handleCloseDetail} onTrendPress={handleTrendPress} />}
+          {selectedId !== null && <PostDetailScreen Id={selectedId} onClose={handleCloseDetail} onTrendPress={handleTrendPress} onTagPress={handleTagPress} />}
         </Modal>
 
         <Modal visible={selectedTrendId !== null} animationType="slide" onRequestClose={() => setSelectedTrendId(null)}>
@@ -245,6 +251,16 @@ function AppContent() {
                 setSelectedTrendId(trendId);
               }}
               onClose={() => setShowScraps(false)}
+          />
+        </Modal>
+
+        <Modal visible={showAllPosts} animationType="slide" onRequestClose={() => setShowAllPosts(false)}>
+          <AllPostsScreen
+              onExperienceClick={(exp) => {
+                setShowAllPosts(false);
+                handleExperienceClick(exp);
+              }}
+              onClose={() => setShowAllPosts(false)}
           />
         </Modal>
       </SafeAreaView>

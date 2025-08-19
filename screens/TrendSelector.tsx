@@ -1,6 +1,6 @@
-// sssu22/front/FRONT-feature-2-/screens/TrendSelector.tsx
+// sssu22/front/FRONT-feature-/screens/TrendSelector.tsx
 
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -50,39 +50,37 @@ export default function TrendSelector({
     건강: "HEALTH", 투자: "INVESTMENT", 소설: "SOCIAL", 기타: "ETC",
   };
 
-  const fetchTrends = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const fetchedTrends = await trendsApi.getAll();
-      if (Array.isArray(fetchedTrends)) {
-        setTrends(fetchedTrends);
-      } else {
-        setTrends([]);
-      }
-    } catch (error) {
-      console.error("트렌드 목록 로딩 실패:", error);
-      setTrends([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
+  // ✨ 실시간 검색 로직 (useEffect)
   useEffect(() => {
-    fetchTrends();
-  }, [fetchTrends]);
+    const performSearch = async () => {
+      setIsLoading(true);
+      try {
+        if (search.trim() === "") {
+          const results = await trendsApi.getAll();
+          setTrends(results);
+        } else {
+          // ✨ 수정된 부분: response 객체에서 .list를 추출하여 사용
+          const response = await trendsApi.search({
+            keyword: search,
+            category: category === "전체" ? undefined : category,
+          });
+          setTrends(response.list); // response가 아닌 response.list를 사용
+        }
+      } catch (error) {
+        console.error("트렌드 데이터 로딩/검색 실패:", error);
+        setTrends([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const filtered = useMemo(() => {
-    if (!Array.isArray(trends)) return [];
-    return trends
-        .filter((t) => {
-          const name = t.name || t.title || "";
-          const desc = t.description || "";
-          const q = search.toLowerCase();
-          return name.toLowerCase().includes(q) || desc.toLowerCase().includes(q);
-        })
-        .filter((t) => category === "전체" || t.category === category)
-        .sort((a, b) => (b.score || 0) - (a.score || 0));
-  }, [trends, search, category]);
+    const debounceTimer = setTimeout(() => {
+      performSearch();
+    }, 300);
+
+    return () => clearTimeout(debounceTimer);
+  }, [search, category]);
+
 
   const handleTrendSelect = (t: Trend) => {
     onTrendSelect({ ...t, name: t.name || t.title });
@@ -96,9 +94,6 @@ export default function TrendSelector({
     setCreateError("");
     setIsCreating(true);
     try {
-      // ====================================================================
-      // ✨ 여기가 수정된 부분입니다: 'categoryName' -> 'category'
-      // ====================================================================
       await trendsApi.create({
         title: newTrend.title,
         description: newTrend.description,
@@ -108,7 +103,8 @@ export default function TrendSelector({
       setShowCreateForm(false);
       setNewTrend({ title: "", description: "", category: "음식" });
       await onTrendCreated();
-      await fetchTrends();
+      // ✨ 생성 후 검색어 초기화하여 전체 목록 다시 불러오기
+      setSearch("");
     } catch (error) {
       console.error("트렌드 생성 실패:", error);
       setCreateError("트렌드 생성에 실패했습니다. 다시 시도해주세요.");
@@ -158,16 +154,19 @@ export default function TrendSelector({
           </TouchableOpacity>
           <View style={styles.listHeader}>
             <Text style={styles.listTitle}>인기 트렌드</Text>
-            <Text style={styles.listCount}>{filtered.length}개</Text>
+            {/* ✨ trends.length로 변경 */}
+            <Text style={styles.listCount}>{trends.length}개</Text>
           </View>
           <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
             {isLoading ? <ActivityIndicator size="large" color="#7C3AED" style={{ marginTop: 40 }} /> :
-                filtered.length === 0 ? (
+                // ✨ trends.length로 변경
+                trends.length === 0 ? (
                     <View style={styles.noResultContainer}>
                       <Feather name="search" size={32} color="#D1D5DB" />
                       <Text style={styles.noResultText}>{search ? '검색 결과가 없습니다' : '표시할 트렌드가 없습니다'}</Text>
                     </View>
-                ) : filtered.map((t, index) => {
+                    // ✨ filtered.map을 trends.map으로 변경
+                ) : trends.map((t, index) => {
                   const name = t.name || t.title || `#${t.id}`;
                   const active = selectedTrend?.id === t.id;
                   let rankBadgeStyle = {};

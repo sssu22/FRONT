@@ -134,13 +134,60 @@ export const usersApi = {
     },
 };
 
-export const trendsApi = { getAll: async (): Promise<Trend[]> => { const res = await axios.get("/trends"); const body = res.data.data ?? res.data; const raw = Array.isArray(body.content) ? body.content : []; return raw.map(transformToTrend); }, search: async (keyword: string): Promise<Trend[]> => { const res = await axios.get(`/search/trends?keyword=${encodeURIComponent(keyword)}&category=all&page=1&size=50&sortBy=latest`); const list = res.data?.data?.list ?? []; return list.map(transformToTrend); }, getById: async (trendId: number): Promise<Trend> => { const res = await axios.get(`/trends/${Number(trendId)}`); const body = res.data.data ?? res.data; return { ...transformToTrend(body), liked: body.liked || body.isLiked || body.userLiked || false, scrapped: body.scrapped || body.isScrapped || body.userScrapped || false, }; }, create: async (payload: { title: string; description: string; [key: string]: any }) => { const res = await axios.post("/trends", payload); return unwrap(res); }, update: async (id: number, p: any) => axios.put(`/trends/${id}`, p), delete: async (id: number) => axios.delete(`/trends/${id}`), like: async (trendId: number) => axios.post(`/trends/${Number(trendId)}/like`, {}), scrap: async (trendId: number) => axios.post(`/trends/${Number(trendId)}/scrap`, {}), getRecent: async (): Promise<Trend[]> => { const res = await axios.get("/trends/recent"); const list = unwrap<any[]>(res) ?? []; return list.map(transformToTrend); }, getPopular: async (): Promise<Trend[]> => { const res = await axios.get("/trends/popular"); const list = unwrap<any[]>(res) ?? []; return list.map(transformToTrend); }, getRecommendations: async (): Promise<Trend[]> => { const res = await axios.get("/recommend"); const list = res.data?.data ?? []; return list.map(transformToTrend); }, getPredictions: async (): Promise<Trend[]> => { const res = await axios.get("/recommend/predictions"); const list = res.data?.data ?? []; return list.map(transformToTrend); }, };
+export const trendsApi = { 
+        getAll: async (): Promise<Trend[]> => { const res = await axios.get("/trends"); const body = res.data.data ?? res.data; const raw = Array.isArray(body.content) ? body.content : []; return raw.map(transformToTrend); }, 
+        search: async (params: {
+        keyword: string;
+        category?: string;
+        page?: number;
+        size?: number;
+        sortBy?: string;
+    }): Promise<PaginatedResponse<Trend>> => {
+        const queryParams = {
+            keyword: params.keyword,
+            category: params.category || 'all',
+            page: params.page || 1,
+            size: params.size || 10,
+            sortBy: params.sortBy || 'latest',
+        };
+        const res = await axios.get(`/search/trends`, { params: queryParams });
+        const data = res.data?.data ?? res.data;
+        const pageInfo = data?.pageInfo ?? {
+            page: queryParams.page,
+            size: queryParams.size,
+            totalElements: data?.totalElements ?? data?.list?.length ?? 0,
+            totalPages: data?.totalPages ?? 1,
+        };
+        return {
+            list: (data?.list || []).map(transformToTrend),
+            pageInfo: pageInfo
+        };
+    },
+        getById: async (trendId: number): Promise<Trend> => { const res = await axios.get(`/trends/${Number(trendId)}`); const body = res.data.data ?? res.data; return { ...transformToTrend(body), liked: body.liked || body.isLiked || body.userLiked || false, scrapped: body.scrapped || body.isScrapped || body.userScrapped || false, }; }, 
+        create: async (payload: { title: string; description: string; [key: string]: any }) => { const res = await axios.post("/trends", payload); return unwrap(res); }, 
+        update: async (id: number, p: any) => axios.put(`/trends/${id}`, p), delete: async (id: number) => axios.delete(`/trends/${id}`), 
+        like: async (trendId: number) => axios.post(`/trends/${Number(trendId)}/like`, {}), 
+        scrap: async (trendId: number) => axios.post(`/trends/${Number(trendId)}/scrap`, {}), 
+        getRecent: async (): Promise<Trend[]> => { const res = await axios.get("/trends/recent"); const list = unwrap<any[]>(res) ?? []; return list.map(transformToTrend); }, 
+        getPopular: async (): Promise<Trend[]> => { const res = await axios.get("/trends/popular"); const list = unwrap<any[]>(res) ?? []; return list.map(transformToTrend); }, 
+        getRecommendations: async (): Promise<Trend[]> => { const res = await axios.get("/recommend"); const list = res.data?.data ?? []; return list.map(transformToTrend); }, 
+        getPredictions: async (): Promise<Trend[]> => { const res = await axios.get("/recommend/predictions"); const list = res.data?.data ?? []; return list.map(transformToTrend); }, };
+
 export const postsApi = {
-    getMyPosts: async (params?: { sort?: string; emotion?: string; page?: number; size?: number; district?: string }): Promise<Experience[]> => {
+    getMyPosts: async (params?: { sort?: string; emotion?: string; page?: number; size?: number; district?: string }): Promise<PaginatedResponse<Experience>> => {
         const q = { page: params?.page ?? 1, size: params?.size ?? 10, sort: params?.sort ?? "latest", emotion: params?.emotion ?? "all", ...(params?.district && { district: params.district }) };
         const res = await axios.get("/users/me/posts", { params: q });
-        const list = res.data?.data?.list || res.data?.data || res.data?.list || [];
-        return (Array.isArray(list) ? list : []).map(dataTransformers.serverToApp);
+        const data = res.data?.data ?? res.data;
+        const pageInfo = data?.pageInfo ?? {
+            page: params?.page ?? 1,
+            size: params?.size ?? 10,
+            totalElements: data?.totalElements ?? data?.list?.length ?? 0,
+            totalPages: data?.totalPages ?? 1,
+        };
+        return {
+            list: (data?.list || []).map(dataTransformers.serverToApp),
+            pageInfo: pageInfo
+        };
     },
     searchMyPosts: async (keyword: string): Promise<Experience[]> => {
         if (!keyword) return [];

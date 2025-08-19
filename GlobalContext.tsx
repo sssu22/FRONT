@@ -101,10 +101,12 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     if (!user) return;
     setLoadingExperiences(true);
     try {
-      const data = await postsApi.getMyPosts();
-      setExperiences(data);
+      // ✅ API 응답이 { list, pageInfo } 객체이므로 `data.list`를 사용하도록 수정
+      const data = await postsApi.getMyPosts({ size: 999 }); // Context에서는 모든 게시글을 가져옴
+      setExperiences(data.list);
+
       const newLikedPosts = new Set<number>();
-      data.forEach(post => {
+      data.list.forEach(post => {
         if (post.liked) newLikedPosts.add(post.id);
       });
       setLikedPosts(newLikedPosts);

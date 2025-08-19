@@ -2,7 +2,7 @@
 
 export const emotionLabels = {
   joy: "기쁨", excitement: "흥분", nostalgia: "향수", surprise: "놀람", love: "사랑",
-  regret: "아쉬움", sadness: "슬픔", irritation: "짜증", anger: "화남", embarrassment: "당황",
+  disappointment: "아쉬움", sadness: "슬픔", annoyance: "짜증", anger: "화남", embarrassment: "당황",
 } as const;
 export type EmotionType = keyof typeof emotionLabels;
 

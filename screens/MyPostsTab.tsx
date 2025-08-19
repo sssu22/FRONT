@@ -1,3 +1,5 @@
+// sssu22/front/FRONT-feature-/screens/MyPostsTab.tsx
+
 import React, {
     useState,
     useEffect,
@@ -33,11 +35,11 @@ type EmotionLabel = (typeof emotionLabels)[EmotionType];
 
 const emotionIcons: Record<EmotionType, string> = {
     joy: "😊", excitement: "🔥", nostalgia: "💭", surprise: "😲", love: "💖",
-    regret: "😞", sadness: "😢", irritation: "😒", anger: "😡", embarrassment: "😳",
+    disappointment: "😞", sadness: "😢", annoyance: "😒", anger: "😡", embarrassment: "😳",
 };
 const emotionColors: Record<EmotionType, string> = {
     joy: "#FFD700", excitement: "#FF4500", nostalgia: "#B0C4DE", surprise: "#9932CC",
-    love: "#FF69B4", regret: "#778899", sadness: "#4682B4", irritation: "#F0E68C",
+    love: "#FF69B4", disappointment: "#778899", sadness: "#4682B4", annoyance: "#F0E68C",
     anger: "#DC143C", embarrassment: "#FFB6C1",
 };
 
@@ -71,6 +73,11 @@ export default function MyPostsTab({
     const [experiences, setExperiences] = useState<Experience[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
 
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    // ✨ 1. 총 게시물 수를 저장할 상태 추가
+    const [totalPostCount, setTotalPostCount] = useState(0);
+
     const [districtFilter, setDistrictFilter] = useState("");
     const [sortOption, setSortOption] = useState<SortOption>("최신순");
     const [emotionFilter, setEmotionFilter] = useState<"전체" | EmotionLabel>("전체");
@@ -85,7 +92,6 @@ export default function MyPostsTab({
 
     const [mapMarkers, setMapMarkers] = useState<MapMarkerItem[]>([]);
 
-    // 1. 지도 데이터는 화면에 처음 진입할 때 한 번만 불러옵니다.
     useEffect(() => {
         if (isFocused) {
             const fetchMapData = async () => {
@@ -100,24 +106,25 @@ export default function MyPostsTab({
         }
     }, [isFocused]);
 
-    // 2. 게시물 목록은 화면 진입 시, 그리고 'districtFilter'가 바뀔 때마다 서버에 새로 요청합니다.
     useEffect(() => {
         if (isFocused) {
-            let isActive = true; // 요청의 유효성을 추적하는 플래그
+            let isActive = true;
 
             const fetchPosts = async () => {
                 setLoading(true);
                 try {
                     const params = {
-                        size: 999,
+                        page: currentPage,
+                        size: 10,
                         district: districtFilter || undefined,
                     };
-                    console.log("서버에 게시물 요청:", params);
-                    const postsFromServer = await postsApi.getMyPosts(params);
+                    const response = await postsApi.getMyPosts(params);
 
-                    // 컴포넌트가 여전히 마운트되어 있고, 이 요청이 최신 요청일 경우에만 상태를 업데이트합니다.
                     if (isActive) {
-                        setExperiences(postsFromServer);
+                        setExperiences(response.list);
+                        setTotalPages(response.pageInfo.totalPages);
+                        // ✨ 2. API 응답에서 받은 전체 게시물 수로 상태 업데이트
+                        setTotalPostCount(response.pageInfo.totalElements);
                     }
                 } catch (err) {
                     if (isActive) {
@@ -133,15 +140,12 @@ export default function MyPostsTab({
 
             fetchPosts();
 
-            // 클린업 함수: 이 effect가 다시 실행되기 전에 호출됩니다.
-            // 이전 요청의 결과가 뒤늦게 도착하더라도 상태를 덮어쓰지 않도록 방지합니다.
             return () => {
                 isActive = false;
             };
         }
-    }, [isFocused, districtFilter]); // districtFilter가 바뀔 때마다 이 useEffect가 실행됩니다.
+    }, [isFocused, districtFilter, currentPage]);
 
-    // WebView에 마커를 로드하는 로직
     useEffect(() => {
         if (isWebViewReady && mapMarkers.length > 0 && webviewRef.current) {
             const mapData = mapMarkers.map(it => ({
@@ -155,7 +159,6 @@ export default function MyPostsTab({
     }, [isWebViewReady, mapMarkers]);
 
     const displayedExperiences = useMemo(() => {
-        // 서버에서 이미 district로 필터링된 목록을 받았으므로, 여기서는 다른 필터만 처리합니다.
         let filtered = [...experiences];
         const trimmedQuery = searchQuery.trim().toLowerCase();
 
@@ -196,6 +199,7 @@ export default function MyPostsTab({
 
                 const newFilter = districtFilter === clickedDistrict ? "" : clickedDistrict;
                 setDistrictFilter(newFilter);
+                setCurrentPage(1);
 
                 if (webviewRef.current) {
                     webviewRef.current.postMessage(JSON.stringify({ type: 'UPDATE_SELECTION', payload: { selectedDistrict: newFilter } }));
@@ -203,6 +207,35 @@ export default function MyPostsTab({
             }
         } catch (error) { console.error("지도 메시지 처리 오류:", error); }
     }, [districtFilter]);
+    
+    const handlePageChange = (newPage: number) => {
+        if (newPage >= 1 && newPage <= totalPages) {
+            setCurrentPage(newPage);
+        }
+    };
+
+    const PaginationControls = () => {
+        if (totalPages <= 1) return null;
+        return (
+            <View style={styles.paginationContainer}>
+                <TouchableOpacity
+                    onPress={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage <= 1 || loading}
+                    style={[styles.pageButton, (currentPage <= 1 || loading) && styles.disabledButton]}
+                >
+                    <Text style={styles.pageButtonText}>이전</Text>
+                </TouchableOpacity>
+                <Text style={styles.pageInfoText}>{`${currentPage} / ${totalPages}`}</Text>
+                <TouchableOpacity
+                    onPress={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage >= totalPages || loading}
+                    style={[styles.pageButton, (currentPage >= totalPages || loading) && styles.disabledButton]}
+                >
+                    <Text style={styles.pageButtonText}>다음</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    };
 
     const renderExperienceCard = ({ item }: { item: Experience }) => {
         const emKey = item.emotion || "joy";
@@ -324,8 +357,9 @@ export default function MyPostsTab({
                                 <Text style={styles.title}>
                                     {districtFilter ? `${districtFilter}의 게시글` : "내 게시글"}
                                 </Text>
+                                {/* ✨ 3. 총 게시물 수를 표시하도록 수정 */}
                                 <Text style={styles.subtitle}>
-                                    총 {displayedExperiences.length}개의 게시글
+                                    총 {totalPostCount}개의 게시글
                                 </Text>
                             </View>
                             <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
@@ -345,12 +379,11 @@ export default function MyPostsTab({
                     </>
                 }
                 renderItem={renderExperienceCard}
+                ListFooterComponent={
+                    loading ? <ActivityIndicator style={{ margin: 20 }} /> : <PaginationControls />
+                }
                 ListEmptyComponent={
-                    loading ? (
-                        <View style={styles.emptyContainer}>
-                            <ActivityIndicator size="large" color="#7C3AED"/>
-                        </View>
-                    ) : (
+                    !loading ? (
                         <View style={styles.emptyContainer}>
                             <Ionicons name="document-text-outline" size={64} color="#D1D5DB" />
                             <Text style={styles.emptyTitle}>
@@ -358,7 +391,7 @@ export default function MyPostsTab({
                             </Text>
                             <Text style={styles.emptySubtitle}>새로운 경험을 기록해보세요!</Text>
                         </View>
-                    )
+                    ) : null
                 }
                 contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}
             />
@@ -428,4 +461,30 @@ const styles = StyleSheet.create({
     dropdownContainer: { borderColor: "#D1D5DB", backgroundColor: "#FFFFFF", borderRadius: 10 },
     closeButton: { marginTop: 16, backgroundColor: "#7C3AED", padding: 14, borderRadius: 10 },
     closeText: { textAlign: "center", color: "white", fontWeight: "600" },
+    paginationContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 16,
+        paddingHorizontal: 32,
+    },
+    pageButton: {
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        backgroundColor: '#EBEBEB',
+        borderRadius: 8,
+    },
+    pageButtonText: {
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    disabledButton: {
+        backgroundColor: '#F5F5F5',
+        opacity: 0.6,
+    },
+    pageInfoText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#555',
+    },
 });

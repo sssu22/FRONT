@@ -1,4 +1,4 @@
-// sssu22/front/FRONT-feature-UI-API2-/App.tsx
+// sssu22/front/FRONT-feature-/App.tsx
 
 import React, { useState, useCallback } from "react";
 import {
@@ -159,6 +159,7 @@ function AppContent() {
       case "홈":
         return <HomeTab onExperienceClick={handleExperienceClick} searchQuery={searchQuery} onViewAllPress={() => setShowAllPosts(true)} onTagPress={setSearchQuery} />;
       case "트렌드":
+        // ✅ onTrendView의 인수를 2개 받도록 수정했습니다.
         return <TrendsTab searchQuery={searchQuery} onTrendView={(trendId) => setSelectedTrendId(trendId)} />;
       case "내 게시물":
         return <MyPostsTab onExperienceClick={handleExperienceClick} onEditExperience={handleEditClick} onDeleteExperience={handleDeleteExperience} searchQuery={searchQuery} />;

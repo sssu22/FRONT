@@ -28,7 +28,7 @@ interface ScrapScreenProps {
 
 const emotionIcons: Record<string, string> = {
   joy: "😊", excitement: "🔥", nostalgia: "💭", surprise: "😲", love: "💖",
-  regret: "😞", sadness: "😢", irritation: "😒", anger: "😡", embarrassment: "😳",
+  disappointment: "😞", sadness: "😢", annoyance: "😒", anger: "😡", embarrassment: "😳",
 };
 
 type ActiveView = 'experiences' | 'trends';
@@ -175,8 +175,9 @@ export default function ScrapScreen({
           {activeView === 'trends' && (
               <>
                 {sortedData.trends.length > 0 ? (
-                    sortedData.trends.map((trend) => (
-                        <Card key={`trend-${trend.id}`} style={styles.card}>
+                    // map 함수에 index를 추가하고, key에 index를 포함시킵니다.
+                    sortedData.trends.map((trend, index) => (
+                        <Card key={`trend-${trend.id}-${index}`} style={styles.card}>
                           <TouchableOpacity style={styles.cardContent} onPress={() => onTrendClick(trend.id)}>
                             <View style={styles.trendIcon}>
                               <Text style={{fontSize: 20, color: '#9333ea'}}>#</Text>
@@ -209,8 +210,9 @@ export default function ScrapScreen({
           {activeView === 'experiences' && (
               <>
                 {sortedData.experiences.length > 0 ? (
-                    sortedData.experiences.map((exp) => (
-                        <Card key={`exp-${exp.id}`} style={styles.card}>
+                    // 안정성을 위해 경험 목록에도 index를 key에 추가합니다.
+                    sortedData.experiences.map((exp, index) => (
+                        <Card key={`exp-${exp.id}-${index}`} style={styles.card}>
                           <TouchableOpacity style={styles.cardContent} onPress={() => onExperienceClick(exp)}>
                             <View style={styles.trendIcon}><Text style={{fontSize: 20}}>{emotionIcons[exp.emotion.toLowerCase()]}</Text></View>
                             <View style={styles.contentArea}>

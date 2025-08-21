@@ -163,13 +163,13 @@ export default function ProfileEdit({ onClose }: ProfileEditProps) {
                     <TextInput style={styles.input} placeholder="거주지" value={location} onChangeText={setLocation} />
                 </View>
 
-                <View style={styles.section}>
+                {/*<View style={styles.section}>
                     <Text style={styles.sectionTitle}>프라이버시 설정</Text>
                     <View style={styles.switchRow}>
                         <Text>위치 추적 허용</Text>
                         <Switch value={allowLocation} onValueChange={setAllowLocation} />
                     </View>
-                </View>
+                </View>*/}
 
                 <View style={styles.section}>
                     <Text style={[styles.sectionTitle, { color: "red" }]}>계정 관리</Text>

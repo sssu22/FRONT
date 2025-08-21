@@ -11,7 +11,7 @@ import { useGlobalContext } from "../GlobalContext";
 
 const emotionIcons: Record<string, string> = {
     joy: "😊", excitement: "🔥", nostalgia: "💭", surprise: "😲", love: "💖",
-    regret: "😞", sadness: "😢", irritation: "😒", anger: "😡", embarrassment: "😳",
+    disappointment: "😞", sadness: "😢", annoyance: "😒", anger: "😡", embarrassment: "😳",
 };
 
 interface PostDetailScreenProps {

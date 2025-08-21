@@ -113,11 +113,13 @@ export default function MyPostsTab({
                         district: districtFilter || undefined,
                     };
                     console.log("서버에 게시물 요청:", params);
-                    const postsFromServer = await postsApi.getMyPosts(params);
+                    // postsApi.getMyPosts는 { list: [], pageInfo: {} } 형태의 객체를 반환합니다.
+                    const postsResponse = await postsApi.getMyPosts(params);
 
                     // 컴포넌트가 여전히 마운트되어 있고, 이 요청이 최신 요청일 경우에만 상태를 업데이트합니다.
                     if (isActive) {
-                        setExperiences(postsFromServer);
+                        // postsFromServer 전체가 아닌, 그 안의 list 배열을 상태로 저장합니다.
+                        setExperiences(postsResponse.list);
                     }
                 } catch (err) {
                     if (isActive) {
@@ -132,7 +134,6 @@ export default function MyPostsTab({
             };
 
             fetchPosts();
-
             // 클린업 함수: 이 effect가 다시 실행되기 전에 호출됩니다.
             // 이전 요청의 결과가 뒤늦게 도착하더라도 상태를 덮어쓰지 않도록 방지합니다.
             return () => {

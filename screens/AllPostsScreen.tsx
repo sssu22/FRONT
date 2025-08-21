@@ -9,12 +9,12 @@ import { postsApi } from '../utils/apiUtils';
 
 const emotionIcons: Record<string, string> = {
     joy: '😊', excitement: '🔥', nostalgia: '💭', surprise: '😲', love: '💖',
-    regret: '😞', sadness: '😢', irritation: '😒', anger: '😡', embarrassment: '😳',
+    disappointment: '😞', sadness: '😢', annoyance: '😒', anger: '😡', embarrassment: '😳',
 };
 
 const emotionColors: Record<string, string> = {
     joy: '#FFD700', excitement: '#FF4500', nostalgia: '#B0C4DE', surprise: '#9932CC',
-    love: '#FF69B4', regret: '#778899', sadness: '#4682B4', irritation: '#F0E68C',
+    love: '#FF69B4', disappointment: '#778899', sadness: '#4682B4', annoyance: '#F0E68C',
     anger: '#DC143C', embarrassment: '#FFB6C1',
 };
 

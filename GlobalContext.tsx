@@ -101,10 +101,15 @@ export const GlobalProvider = ({ children }: { children: ReactNode }) => {
     if (!user) return;
     setLoadingExperiences(true);
     try {
-      const data = await postsApi.getMyPosts();
-      setExperiences(data);
+      // postsApi.getMyPosts()는 { list: [], pageInfo: {} } 형태의 객체를 반환합니다.
+      const response = await postsApi.getMyPosts();
+
+      // response 객체에서 실제 게시물 배열인 'list'를 사용하여 상태를 업데이트합니다.
+      setExperiences(response.list);
+
       const newLikedPosts = new Set<number>();
-      data.forEach(post => {
+      // data.forEach 대신 response.list.forEach를 사용합니다.
+      response.list.forEach(post => {
         if (post.liked) newLikedPosts.add(post.id);
       });
       setLikedPosts(newLikedPosts);

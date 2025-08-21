@@ -21,7 +21,7 @@ import { useIsFocused } from '@react-navigation/native';
 
 const emotionIcons: Record<EmotionType, string> = {
   joy: "😊", excitement: "🔥", nostalgia: "💭", surprise: "😲", love: "💖",
-  regret: "😞", sadness: "😢", irritation: "😒", anger: "😡", embarrassment: "😳",
+  disappointment: "😞", sadness: "😢", annoyance: "😒", anger: "😡", embarrassment: "😳",
 };
 
 interface ProfileTabProps {
